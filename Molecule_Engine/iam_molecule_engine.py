@@ -37,7 +37,9 @@ def validate_xyz(file_path):
 
 def run_xtb(xyz_path, output_dir):
     env = os.environ.copy()
-    env["PATH"] = "/home/lppou/xtb/build/bin:" + env["PATH"]
+    xtb_path = os.environ.get("XTB_PATH")
+    if xtb_path:
+        env["PATH"] = f"{xtb_path}:{env['PATH']}"
 
     result = subprocess.run(
         ["xtb", xyz_path, "--opt", "--property"],
