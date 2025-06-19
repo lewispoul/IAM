@@ -1,7 +1,11 @@
 # 🧪 IAM – Intelligent Assistant for Materials
 
-**IAM** est un assistant IA modulaire dédié à la chimie computationnelle et aux matériaux énergétiques.  
-Il permet de visualiser, optimiser et analyser des molécules, prédire leurs propriétés, et centraliser les résultats dans une base de connaissances interactive.
+![Python](https://img.shields.io/badge/python-3.10-blue)
+![Platform](https://img.shields.io/badge/platform-RaspberryPi%20%7C%20Windows%20%7C%20Linux-lightgrey)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Maintained](https://img.shields.io/badge/maintained-yes-brightgreen)
+![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-blue)
+![IAM Project](https://img.shields.io/badge/IAM_Project-Active-informational)
 
 ---
 
