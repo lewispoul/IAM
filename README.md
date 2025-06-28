@@ -1,8 +1,34 @@
-# IAM Molecule Viewer
+IAM combine plusieurs outils open-source de chimie computationnelle :
 
-**Une interface moderne pour visualiser et analyser des molécules, faire des calculs de chimie computationnelle, accessible sur Linux et Windows (via WSL).**
+Optimisation géométrique et calculs quantiques : Intégration automatisée de logiciels tels que XTB (modèles GFN0/1/2) et Psi4 pour réaliser des calculs d’optimisation, de fréquences, d’orbitales (HOMO-LUMO), d’énergies et d’indices de réactivité sur des structures moléculaires.
 
----
+Génération et validation de structures 3D : Conversion SMILES/MOL vers XYZ à l’aide de RDKit et optimisation via UFF/ETKDG.
+
+Visualisation 3D interactive : Affichage en temps réel des structures et résultats à travers une interface web moderne (3Dmol.js), accessible localement ou à distance.
+
+Prédiction de performances énergétiques : Modules internes pour la prédiction de la vitesse de détonation, pression de Chapman-Jouguet, enthalpie de formation/détonation, etc., basés à la fois sur des formules empiriques (Kamlet–Jacobs, Keshavarz) et sur l’apprentissage automatique (ML/IA).
+
+Extraction automatique de données : Extraction et structuration de données issues d’encyclopédies spécialisées (e.g., Klapötke, LLNL, Agrawal) afin d’enrichir les bases de données de propriétés moléculaires et d’alimenter les modèles de prédiction.
+
+Innovation et valeur ajoutée
+
+Automatisation et reproductibilité : IAM offre un pipeline reproductible et automatisé, limitant les erreurs humaines et accélérant l’évaluation de nouvelles molécules.
+
+Interface conviviale : Un portail web moderne permet à tout membre du laboratoire, peu importe son expertise en informatique, d’effectuer des calculs avancés et de visualiser les résultats.
+
+Ouverture et extensibilité : IAM a été conçu comme une plateforme modulaire, permettant l’ajout de nouveaux outils (e.g., modules NMR, prédiction de sensibilité, benchmarks ML) et le partage des workflows pour d’autres domaines (chimie médicinale, matériaux avancés, etc.).
+
+Centralisation des connaissances : La génération automatique de fiches moléculaires et l’intégration d’un module de benchmark facilitent la comparaison directe entre calculs, modèles empiriques et données expérimentales issues de la littérature.
+
+Retombées attendues
+
+Accélération de la recherche sur les matériaux énergétiques, en réduisant drastiquement le temps nécessaire pour cribler et évaluer des candidats moléculaires.
+
+Renforcement de l’expertise numérique du laboratoire, en offrant une interface pédagogique pour la formation des étudiants à la chimie computationnelle moderne.
+
+Partage des outils et protocoles au sein de la communauté universitaire ou via des collaborations, en particulier grâce à l’intégration facile sur des environnements locaux (PC, Raspberry Pi) ou potentiellement sur le cloud.
+
+Le projet IAM s’inscrit dans une démarche d’innovation numérique en chimie. Il vise à démocratiser l’accès aux méthodes computationnelles avancées, à centraliser l’expertise du laboratoire sous forme d’outils interactifs et à accélérer la découverte de nouveaux matériaux énergétiques performants et sûrs.
 
 ## 👀 Aperçu rapide
 
