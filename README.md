@@ -94,7 +94,7 @@ Si vous avez téléchargé IAM sous forme d’archive `.zip` depuis GitHub, **d�
 
 ### **1. Ouvrir un terminal dans Ubuntu (ou WSL/Ubuntu sous Windows)**
 
-### **2. Copier-coller ces commandes** :
+### **2. Copier-coller ces commandes**
 
 ```bash
 # Télécharger le projet IAM
@@ -230,8 +230,42 @@ Les fichiers temporaires, résultats, environnements virtuels sont automatiqueme
 
 ---
 
-**IAM Molecule Viewer — Québec, Juin 2025**
-*Votre assistant pour la chimie computationnelle, prêt à l’emploi !*
+# IAM Project
+
+## Overview
+
+IAM is an AI Molecule Viewer & Performance Predictor for Energetic Materials.
+
+## Project Structure
+
+* `IAM_GUI/`: Contains backend, templates, and static files.
+
+* `IAM_Tools/`: Scripts for prediction, cleaning, and dataset generation.
+* `IAM_Knowledge/`: Molecular references and documentation.
+* `IAM_Results/`: Calculation results.
+* `IAM_Datasets/`: Training datasets.
+* `IAM_Notebooks/`: Jupyter notebooks for visualization and ML.
+* `trash/`: Orphaned or temporary files.
+
+## Setup
+
+1. Install dependencies:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. Run the cleanup script:
+
+   ```bash
+   python cleanup.py
+   ```
+
+## Usage
+
+Refer to individual scripts and notebooks for specific functionalities.
 
 ---
 
+**IAM Molecule Viewer — Québec, Juin 2025**
+*Votre assistant pour la chimie computationnelle, prêt à l’emploi !*

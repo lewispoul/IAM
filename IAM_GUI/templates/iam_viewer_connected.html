@@ -139,14 +139,29 @@
                             height="340"
                             style="border:1px solid #d0d0d0; border-radius:6px; background:#fff"></iframe>
                     </div>
+                    <!-- Ajout d'icônes et amélioration de la structure -->
                     <div class="d-flex flex-wrap gap-2 mt-2">
-                        <button id="loadFromSketcher" class="btn btn-outline-primary btn-sm">Load from Sketcher</button>
-                        <button id="exportSmiles" class="btn btn-outline-secondary btn-sm" title="Export as SMILES">Export SMILES</button>
-                        <button id="exportMol" class="btn btn-outline-secondary btn-sm" title="Export as MOL">Export MOL</button>
-                        <button id="exportXyz" class="btn btn-outline-secondary btn-sm" title="Export as XYZ">Export XYZ</button>
-                        <button id="copySmiles" class="btn btn-outline-secondary btn-sm" title="Copy SMILES to clipboard">Copy SMILES</button>
-                        <button id="copyMol" class="btn btn-outline-secondary btn-sm" title="Copy MOL to clipboard">Copy MOL</button>
-                        <button id="copyXyz" class="btn btn-outline-secondary btn-sm" title="Copy XYZ to clipboard">Copy XYZ</button>
+                        <button id="loadFromSketcher" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-upload"></i> Charger depuis Sketcher
+                        </button>
+                        <button id="exportSmiles" class="btn btn-outline-secondary btn-sm" title="Exporter en SMILES">
+                            <i class="bi bi-file-earmark-code"></i> Exporter SMILES
+                        </button>
+                        <button id="exportMol" class="btn btn-outline-secondary btn-sm" title="Exporter en MOL">
+                            <i class="bi bi-file-earmark-text"></i> Exporter MOL
+                        </button>
+                        <button id="exportXyz" class="btn btn-outline-secondary btn-sm" title="Exporter en XYZ">
+                            <i class="bi bi-file-earmark-binary"></i> Exporter XYZ
+                        </button>
+                        <button id="copySmiles" class="btn btn-outline-secondary btn-sm" title="Copier SMILES dans le presse-papier">
+                            <i class="bi bi-clipboard"></i> Copier SMILES
+                        </button>
+                        <button id="copyMol" class="btn btn-outline-secondary btn-sm" title="Copier MOL dans le presse-papier">
+                            <i class="bi bi-clipboard"></i> Copier MOL
+                        </button>
+                        <button id="copyXyz" class="btn btn-outline-secondary btn-sm" title="Copier XYZ dans le presse-papier">
+                            <i class="bi bi-clipboard"></i> Copier XYZ
+                        </button>
                     </div>
                 </div>
                 <div class="mb-3">
@@ -227,11 +242,13 @@
                             </div>
                         </div>
                         <hr class="my-2">
-                        <button id="resymmetrizeBtn" class="btn btn-outline-primary btn-sm mb-1">Resymmetrize</button>
-                        <button id="drawSymmetryBtn" class="btn btn-outline-primary btn-sm mb-1">Draw Point Group Elements</button>
-                        <button id="optimizeBtn" class="btn btn-outline-success btn-sm mb-1">Optimize Structure in 3D</button>
-                        <button id="deleteHBtn" class="btn btn-outline-danger btn-sm mb-1">Delete All Hydrogens</button>
-                        <button id="saveStructBtn" class="btn btn-outline-secondary btn-sm">Save Structure to File</button>
+                        <div class="d-flex flex-column gap-2" id="functional-buttons">
+                            <button id="resymmetrizeBtn" class="btn btn-outline-primary btn-sm">Resymmetrize</button>
+                            <button id="drawSymmetryBtn" class="btn btn-outline-primary btn-sm">Draw Point Group Elements</button>
+                            <button id="optimizeBtn" class="btn btn-outline-success btn-sm">Optimize Structure in 3D</button>
+                            <button id="deleteHBtn" class="btn btn-outline-danger btn-sm">Delete All Hydrogens</button>
+                            <button id="saveStructBtn" class="btn btn-outline-secondary btn-sm">Save Structure to File</button>
+                        </div>
                     </div>
                     <!-- Viewer Controls (background, view, etc.) -->
                     <div class="flex-grow-1">
@@ -302,13 +319,26 @@
                 <!-- New IAM Tools tab content -->
                 <div class="tab-content" id="iamTools" style="display: none;">
                     <h3>🧰 IAM Tools</h3>
-                    <button onclick="window.open('/dashboard', '_blank')">📋 IAM Dashboard</button>
-                    <br><br>
-                    <button disabled>📦 Export Results (coming soon)</button>
-                    <br><br>
-                    <button disabled>📁 View System Logs (coming)</button>
-                    <br><br>
-                    <button disabled>⏳ Pending Tasks (coming)</button>
+                    <div class="d-flex flex-column gap-3">
+                        <div>
+                            <label for="smilesInput" class="form-label">SMILES/MOL</label>
+                            <input type="text" id="smilesInput" class="form-control" placeholder="Entrez SMILES ou MOL">
+                        </div>
+                        <button id="predictStability" class="btn btn-success" onclick="predictStability()">
+                            <i class="bi bi-bar-chart"></i> Predict Stability
+                        </button>
+                        <button id="predictVoD" class="btn btn-success" onclick="predictVoD()">
+                            <i class="bi bi-speedometer"></i> Predict VoD
+                        </button>
+                        <button id="generateReport" class="btn btn-primary" onclick="generateReport()">
+                            <i class="bi bi-file-earmark-text"></i> Generate Report
+                        </button>
+                    </div>
+                    <!-- Champ pour afficher les résultats -->
+                    <div id="iam-result" class="mt-4 bg-light p-3 rounded">
+                        <h6>Results:</h6>
+                        <pre id="result-output"></pre>
+                    </div>
                 </div>
             </div>
         </div>

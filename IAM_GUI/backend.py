@@ -5,14 +5,29 @@ import subprocess
 import tempfile
 import json
 import traceback
+import sys
+import importlib
 
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit.Chem import rdDistGeom
 from rdkit.Chem import rdForceFieldHelpers
 
+# Add IAM_Knowledge to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../IAM_Knowledge')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 app = Flask(__name__, template_folder='templates')
 CORS(app)
+
+# Debug: Print sys.path to verify module path
+print("sys.path:", sys.path)
+
+# Debug: List contents of IAM_Knowledge directory
+print("IAM_Knowledge contents:", os.listdir(os.path.abspath(os.path.join(os.path.dirname(__file__), '../IAM_Knowledge'))))
+
+# Debug: Print PYTHONPATH and verify environment configuration
+print("PYTHONPATH:", os.environ.get('PYTHONPATH', 'Not set'))
 
 # --- Global error handler ---
 @app.errorhandler(Exception)
@@ -378,6 +393,58 @@ from flask import render_template
 @app.route('/dashboard')
 def dashboard():
     return render_template('IAM_StatusDashboard.html')
+
+# Ajout des endpoints manquants
+
+@app.route('/compute_symmetry', methods=['POST'])
+def compute_symmetry():
+    try:
+        xyz_file = request.files.get("file")
+        if not xyz_file:
+            return jsonify({"success": False, "error": "No file received"}), 400
+
+        # Logique pour calculer la symétrie
+        symmetry_result = "Symmetry computation logic here"
+        return jsonify({"success": True, "symmetry": symmetry_result})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "details": traceback.format_exc()}), 500
+
+@app.route('/predict_stability', methods=['POST'])
+def predict_stability():
+    data = request.get_json()
+    xyz = data.get('xyz', '')
+    result = predict_stability_logic(xyz)  # Appelle le module IAM_StabilityPredictor
+    return jsonify({'result': result})
+
+@app.route('/predict_vod', methods=['POST'])
+def predict_vod():
+    data = request.get_json()
+    xyz = data.get('xyz', '')
+    result = predict_vod(xyz)  # Appelle le module IAM_VoD_Predictor
+    return jsonify({'result': result})
+
+@app.route('/generate_report', methods=['POST'])
+def generate_report():
+    data = request.get_json()
+    xyz = data.get('xyz', '')
+    stability = predict_stability_logic(xyz)
+    vod = predict_vod(xyz)
+    report = {
+        'stability': stability,
+        'vod': vod
+    }
+    return jsonify({'result': report})
+
+# Import des modules nécessaires
+from IAM_Knowledge.IAM_StabilityPredictor import predict_stability_logic
+from IAM_Knowledge.IAM_VoD_Predictor import predict_vod
+
+# Dynamic import test
+try:
+    stability_module = importlib.import_module('IAM_Knowledge.IAM_StabilityPredictor')
+    print("IAM_StabilityPredictor imported successfully:", stability_module)
+except ModuleNotFoundError as e:
+    print("Dynamic import failed:", e)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

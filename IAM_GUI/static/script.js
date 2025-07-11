@@ -398,4 +398,300 @@ document.addEventListener("DOMContentLoaded", function () {
             alert('Search functionality not implemented yet.');
         });
     }
+
+    // Ajout de la gestion du mode sombre
+    const darkModeSwitch = document.getElementById('darkModeSwitch');
+    if (darkModeSwitch) {
+        darkModeSwitch.addEventListener('change', function () {
+            document.body.classList.toggle('dark-mode', darkModeSwitch.checked);
+            localStorage.setItem('darkMode', darkModeSwitch.checked ? 'enabled' : 'disabled');
+        });
+
+        // Charger l'état du mode sombre depuis le stockage local
+        const darkModeState = localStorage.getItem('darkMode');
+        if (darkModeState === 'enabled') {
+            darkModeSwitch.checked = true;
+            document.body.classList.add('dark-mode');
+        }
+    }
+
+    // Gestion des boutons Optimize Structure in 3D et Draw Point Group Elements
+
+    document.getElementById('optimize3D').addEventListener('click', async function () {
+        const viewerDiv = document.getElementById('viewer');
+        const xyzData = viewerDiv.dataset.xyz || ''; // Récupérer les données XYZ du viewer
+        if (!xyzData) {
+            showErrorModal('No structure loaded in viewer.');
+            return;
+        }
+        showSpinner();
+        try {
+            const response = await fetch('/run_xtb', {
+                method: 'POST',
+                body: JSON.stringify({ xyz: xyzData }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+            if (result.success) {
+                updateViewer(result.xyz);
+                updateSummary(result.xtb_json);
+            } else {
+                showErrorModal(result.error);
+            }
+        } catch (error) {
+            showErrorModal(error.message);
+        } finally {
+            hideSpinner();
+        }
+    });
+
+    document.getElementById('drawPointGroup').addEventListener('click', async function () {
+        const viewerDiv = document.getElementById('viewer');
+        const xyzData = viewerDiv.dataset.xyz || ''; // Récupérer les données XYZ du viewer
+        if (!xyzData) {
+            showErrorModal('No structure loaded in viewer.');
+            return;
+        }
+        showSpinner();
+        try {
+            const response = await fetch('/compute_symmetry', {
+                method: 'POST',
+                body: JSON.stringify({ xyz: xyzData }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+            if (result.success) {
+                updateSummary({ symmetry: result.symmetry });
+            } else {
+                showErrorModal(result.error);
+            }
+        } catch (error) {
+            showErrorModal(error.message);
+        } finally {
+            hideSpinner();
+        }
+    });
+
+    // Gestion du panneau IAM Tools
+
+    document.getElementById('predictStability').addEventListener('click', async function () {
+        const smiles = document.getElementById('smilesInput').value;
+        if (!smiles) {
+            showErrorModal('Please enter SMILES or MOL data.');
+            return;
+        }
+        showSpinner();
+        try {
+            const response = await fetch('/predict_stability', {
+                method: 'POST',
+                body: JSON.stringify({ smiles }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+            if (result.success) {
+                updateIAMToolsOutput(result.stability);
+            } else {
+                showErrorModal(result.error);
+            }
+        } catch (error) {
+            showErrorModal(error.message);
+        } finally {
+            hideSpinner();
+        }
+    });
+
+    document.getElementById('predictVoD').addEventListener('click', async function () {
+        const smiles = document.getElementById('smilesInput').value;
+        if (!smiles) {
+            showErrorModal('Please enter SMILES or MOL data.');
+            return;
+        }
+        showSpinner();
+        try {
+            const response = await fetch('/predict_vod', {
+                method: 'POST',
+                body: JSON.stringify({ smiles }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+            if (result.success) {
+                updateIAMToolsOutput(result.vod);
+            } else {
+                showErrorModal(result.error);
+            }
+        } catch (error) {
+            showErrorModal(error.message);
+        } finally {
+            hideSpinner();
+        }
+    });
+
+    document.getElementById('generateReport').addEventListener('click', async function () {
+        const smiles = document.getElementById('smilesInput').value;
+        if (!smiles) {
+            showErrorModal('Please enter SMILES or MOL data.');
+            return;
+        }
+        showSpinner();
+        try {
+            const response = await fetch('/generate_report', {
+                method: 'POST',
+                body: JSON.stringify({ smiles }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+            if (result.success) {
+                updateIAMToolsOutput(result.report);
+            } else {
+                showErrorModal(result.error);
+            }
+        } catch (error) {
+            showErrorModal(error.message);
+        } finally {
+            hideSpinner();
+        }
+    });
+
+    // Fonctions pour les boutons Predict Stability, Predict VoD, et Generate Report
+
+    async function predictStability() {
+        const viewerDiv = document.getElementById('viewer');
+        const xyzData = viewerDiv.dataset.xyz || ''; // Récupérer les données XYZ du viewer
+        if (!xyzData) {
+            showErrorModal('No structure loaded in viewer.');
+            return;
+        }
+        showSpinner();
+        try {
+            const response = await fetch('/predict_stability', {
+                method: 'POST',
+                body: JSON.stringify({ xyz: xyzData }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+            if (result.result) {
+                document.getElementById('result-output').textContent = JSON.stringify(result.result, null, 2);
+            } else {
+                showErrorModal(result.error);
+            }
+        } catch (error) {
+            showErrorModal(error.message);
+        } finally {
+            hideSpinner();
+        }
+    }
+
+    async function predictVoD() {
+        const viewerDiv = document.getElementById('viewer');
+        const xyzData = viewerDiv.dataset.xyz || ''; // Récupérer les données XYZ du viewer
+        if (!xyzData) {
+            showErrorModal('No structure loaded in viewer.');
+            return;
+        }
+        showSpinner();
+        try {
+            const response = await fetch('/predict_vod', {
+                method: 'POST',
+                body: JSON.stringify({ xyz: xyzData }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+            if (result.result) {
+                document.getElementById('result-output').textContent = JSON.stringify(result.result, null, 2);
+            } else {
+                showErrorModal(result.error);
+            }
+        } catch (error) {
+            showErrorModal(error.message);
+        } finally {
+            hideSpinner();
+        }
+    }
+
+    async function generateReport() {
+        const viewerDiv = document.getElementById('viewer');
+        const xyzData = viewerDiv.dataset.xyz || ''; // Récupérer les données XYZ du viewer
+        if (!xyzData) {
+            showErrorModal('No structure loaded in viewer.');
+            return;
+        }
+        showSpinner();
+        try {
+            const response = await fetch('/generate_report', {
+                method: 'POST',
+                body: JSON.stringify({ xyz: xyzData }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+            if (result.result) {
+                document.getElementById('result-output').textContent = JSON.stringify(result.result, null, 2);
+            } else {
+                showErrorModal(result.error);
+            }
+        } catch (error) {
+            showErrorModal(error.message);
+        } finally {
+            hideSpinner();
+        }
+    }
+
+    // Add event listeners for functional buttons
+
+    document.getElementById('resymmetrizeBtn').addEventListener('click', () => {
+        resymmetrizeStructure();
+    });
+
+    document.getElementById('drawSymmetryBtn').addEventListener('click', () => {
+        drawPointGroupElements();
+    });
+
+    document.getElementById('optimizeBtn').addEventListener('click', () => {
+        optimizeStructure3D();
+    });
+
+    document.getElementById('deleteHBtn').addEventListener('click', () => {
+        deleteAllHydrogens();
+    });
+
+    document.getElementById('saveStructBtn').addEventListener('click', () => {
+        saveStructureToFile();
+    });
+
+    // Define functions for button actions
+    function resymmetrizeStructure() {
+        console.log('Resymmetrizing structure...');
+        // Logic for resymmetrizing the structure
+    }
+
+    function drawPointGroupElements() {
+        console.log('Drawing point group elements...');
+        // Logic for drawing symmetry elements
+    }
+
+    function optimizeStructure3D() {
+        console.log('Optimizing structure in 3D...');
+        fetch('/run_xtb', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ action: 'optimize' }),
+        })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Optimization result:', data);
+                // Update viewer with optimized structure
+            })
+            .catch(error => console.error('Error optimizing structure:', error));
+    }
+
+    function deleteAllHydrogens() {
+        console.log('Deleting all hydrogens...');
+        // Logic for removing hydrogen atoms from the viewer
+    }
+
+    function saveStructureToFile() {
+        console.log('Saving structure to file...');
+        // Logic for exporting the structure and triggering a download
+    }
 });
