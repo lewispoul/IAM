@@ -694,4 +694,43 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log('Saving structure to file...');
         // Logic for exporting the structure and triggering a download
     }
+
+    // 🔧 Frontend corrections for IAM Viewer
+
+    // Add event listeners for buttons
+    document.getElementById("optimize3DButton").addEventListener("click", optimize3DStructure);
+    document.getElementById("resymmetrizeButton").addEventListener("click", resymmetrizeStructure);
+    document.getElementById("drawSymmetryElementsButton").addEventListener("click", drawSymmetryElements);
+    document.getElementById("submitJobButton").addEventListener("click", submitJob);
+    document.getElementById("IAMToolsButton").addEventListener("click", toggleIAMToolsPanel);
+
+    // 🔧 Action for the button Optimize
+    function optimize3DStructure() {
+        console.log("Optimizing 3D structure...");
+        // Placeholder logic for optimization
+    }
+
+    // 🔧 Action for the button Resymmetrize
+    function resymmetrizeStructure() {
+        console.log("Resymmetrizing structure...");
+        // Placeholder logic for resymmetrization
+    }
+
+    // 🔧 Action for the button Draw Symmetry Elements
+    function drawSymmetryElements() {
+        console.log("Drawing symmetry elements...");
+        // Placeholder logic for drawing symmetry elements
+    }
+
+    // 🔧 Action for the button Submit Job
+    function submitJob() {
+        console.log("Submitting job...");
+        // Placeholder logic for job submission
+    }
+
+    // 🔧 Action for the button IAM Tools
+    function toggleIAMToolsPanel() {
+        const panel = document.getElementById("IAMToolsPanel");
+        panel.style.display = panel.style.display === "none" ? "block" : "none";
+    }
 });

@@ -115,6 +115,38 @@
         @media (min-width: 900px) {
           #resultTabsContent { min-width: 600px; }
         }
+        /* 🔧 Frontend corrections for IAM Viewer */
+        #functional-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        #functional-buttons .btn {
+            flex: 1;
+        }
+        #viewer-sections {
+            display: flex;
+            flex-direction: row;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        #viewer-sections .panel {
+            flex: 1;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        #IAMToolsPanel {
+            display: none;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
 <body>
@@ -243,11 +275,11 @@
                         </div>
                         <hr class="my-2">
                         <div class="d-flex flex-column gap-2" id="functional-buttons">
-                            <button id="resymmetrizeBtn" class="btn btn-outline-primary btn-sm">Resymmetrize</button>
-                            <button id="drawSymmetryBtn" class="btn btn-outline-primary btn-sm">Draw Point Group Elements</button>
-                            <button id="optimizeBtn" class="btn btn-outline-success btn-sm">Optimize Structure in 3D</button>
-                            <button id="deleteHBtn" class="btn btn-outline-danger btn-sm">Delete All Hydrogens</button>
-                            <button id="saveStructBtn" class="btn btn-outline-secondary btn-sm">Save Structure to File</button>
+                            <button id="optimize3DButton" class="btn btn-green">Optimize 3D Structure</button>
+                            <button id="resymmetrizeButton" class="btn btn-blue">Resymmetrize</button>
+                            <button id="drawSymmetryElementsButton" class="btn btn-blue">Draw Symmetry Elements</button>
+                            <button id="submitJobButton" class="btn btn-green">Submit Job</button>
+                            <button id="IAMToolsButton" class="btn btn-blue">IAM Tools</button>
                         </div>
                     </div>
                     <!-- Viewer Controls (background, view, etc.) -->
@@ -339,6 +371,38 @@
                         <h6>Results:</h6>
                         <pre id="result-output"></pre>
                     </div>
+                </div>
+                <!-- 🔧 Frontend corrections for IAM Viewer -->
+                <div class="d-flex flex-column gap-2" id="functional-buttons">
+                    <button id="optimize3DButton" class="btn btn-green">Optimize 3D Structure</button>
+                    <button id="resymmetrizeButton" class="btn btn-blue">Resymmetrize</button>
+                    <button id="drawSymmetryElementsButton" class="btn btn-blue">Draw Symmetry Elements</button>
+                    <button id="submitJobButton" class="btn btn-green">Submit Job</button>
+                    <button id="IAMToolsButton" class="btn btn-blue">IAM Tools</button>
+                </div>
+                <!-- Résumé / Input / Output / Log sections -->
+                <div class="d-flex flex-row gap-3" id="viewer-sections">
+                    <div id="summary" class="panel">
+                        <h3>Summary</h3>
+                        <p id="summary-content">No data available.</p>
+                    </div>
+                    <div id="input" class="panel">
+                        <h3>Input</h3>
+                        <textarea id="input-area" rows="5" class="form-control" placeholder="Paste your molecule data here..."></textarea>
+                    </div>
+                    <div id="output" class="panel">
+                        <h3>Output</h3>
+                        <pre id="output-content">Results will appear here.</pre>
+                    </div>
+                    <div id="log" class="panel">
+                        <h3>Log</h3>
+                        <pre id="log-content">Logs will appear here.</pre>
+                    </div>
+                </div>
+                <!-- IAM Tools dynamic section -->
+                <div id="IAMToolsPanel" class="panel" style="display: none;">
+                    <h3>IAM Tools</h3>
+                    <p>Dynamic content will be loaded here.</p>
                 </div>
             </div>
         </div>
@@ -795,17 +859,17 @@
             symmetryGroup = this.value;
         });
         // Resymmetrize
-        document.getElementById('resymmetrizeBtn').addEventListener('click', function() {
+        document.getElementById('resymmetrizeButton').addEventListener('click', function() {
             // TODO: Send current structure and symmetryGroup to backend, update viewer
             alert('Resymmetrize feature coming soon!');
         });
         // Draw symmetry elements
-        document.getElementById('drawSymmetryBtn').addEventListener('click', function() {
+        document.getElementById('drawSymmetryElementsButton').addEventListener('click', function() {
             // TODO: Draw symmetry elements in 3Dmol.js scene
             alert('Draw symmetry elements feature coming soon!');
         });
         // Optimize structure
-        document.getElementById('optimizeBtn').addEventListener('click', function() {
+        document.getElementById('optimize3DButton').addEventListener('click', function() {
             // TODO: Send current structure to backend for optimization, update viewer
             alert('3D optimization feature coming soon!');
         });
