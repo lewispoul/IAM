@@ -5,6 +5,7 @@ Backend pour l'interface IAM avec support XTB, molécules et prédictions
 """
 
 import json
+import json
 import os
 import subprocess
 import tempfile
@@ -18,7 +19,7 @@ from flask_cors import CORS
 RDKIT_AVAILABLE = False
 try:
     from rdkit import Chem
-    from rdkit.Chem import AllChem, rdMolOps
+    from rdkit.Chem import AllChem, rdmolops  # rdmolops en minuscules
     from rdkit.Chem import rdDistGeom
     try:
         from rdkit.Chem import rdForceFieldHelpers
@@ -138,7 +139,8 @@ def robust_mol_to_xyz(mol_content, source="unknown"):
         raise ValueError("RDKit non disponible pour la conversion MOL")
     
     try:
-        # Étape 1: Nettoyer le contenu MOL
+        # Étape 1: Nettoyer le contenu MOL et convertir les escapes
+        mol_content = mol_content.replace('\\n', '\n').replace('\\r', '\r')
         mol_content = mol_content.replace('\r\n', '\n').replace('\r', '\n')
         
         # Étape 2: Patcher le MOL pour corriger les problèmes courants
@@ -164,15 +166,35 @@ def robust_mol_to_xyz(mol_content, source="unknown"):
                         print("⚠️ Sanitization a échoué, continue sans")
             except Exception as e2:
                 print(f"⚠️ Tentative 2 échouée: {e2}")
+                
+                # Tentative 3: Utiliser notre fonction patch_molblock améliorée
+                try:
+                    patched_mol = patch_molblock(mol_content)
+                    print(f"🔧 MOL patché avec patch_molblock:")
+                    print(f"Premier 150 chars: {repr(patched_mol[:150])}")
+                    mol = Chem.MolFromMolBlock(patched_mol, sanitize=False)
+                    if mol:
+                        print("✅ Molécule parsée avec patch_molblock")
+                except Exception as e3:
+                    print(f"⚠️ Tentative 3 (patch_molblock) échouée: {e3}")
+                    
+                    # Tentative 4: Essayer clean_indigo_molblock en dernier recours
+                    try:
+                        cleaned_mol = clean_indigo_molblock(mol_content)
+                        mol = Chem.MolFromMolBlock(cleaned_mol, sanitize=False)
+                        if mol:
+                            print("✅ Molécule parsée avec nettoyage INDIGO")
+                    except Exception as e4:
+                        print(f"⚠️ Tentative 4 (INDIGO) échouée: {e4}")
         
         if mol is None:
-            raise ValueError(f"Impossible de parser le MOL depuis {source}")
+            raise ValueError(f"Impossible de parser le MOL depuis {source}. Contenu: {mol_content[:200]}...")
         
         # Étape 4: Calculer les valences implicites AVANT d'ajouter des hydrogènes
         try:
             for atom in mol.GetAtoms():
                 atom.UpdatePropertyCache(strict=False)
-            Chem.rdMolOps.FastFindRings(mol)
+            Chem.rdmolops.FastFindRings(mol)  # rdmolops en minuscules
         except Exception as e:
             print(f"⚠️ Warning: Property cache update failed: {e}")
         
@@ -216,30 +238,58 @@ def manual_xyz_generation(mol):
         raise ValueError(f"Génération manuelle XYZ échouée: {e}")
 
 
+def clean_indigo_molblock(molblock: str) -> str:
+    """Nettoyage spécifique pour les fichiers MOL générés par INDIGO"""
+    lines = molblock.splitlines()
+    
+    # Remplacer le header INDIGO
+    if lines and 'INDIGO' in lines[0]:
+        lines[0] = 'Benzene'  # Nom générique
+    
+    # Ligne 2: commentaire/programme
+    if len(lines) > 1:
+        lines[1] = '  IAM-Generated'
+    
+    # Ligne 3: timestamp - garder ou remplacer
+    if len(lines) > 2 and not lines[2].strip():
+        lines[2] = ''
+    
+    # Reconstruire le MOL simplifié
+    result = '\n'.join(lines)
+    
+    # S'assurer que ça se termine par M  END
+    if 'M  END' not in result:
+        result += '\nM  END'
+    
+    return result
+
+
 def patch_molblock(molblock: str) -> str:
     """Correction robuste des fichiers MOL pour compatibilité RDKit maximale"""
     lines = molblock.splitlines()
     
-    # 1. Supprimer lignes vides début/fin
-    while lines and not lines[0].strip():
+    # 1. Supprimer SEULEMENT les lignes complètement vides au début/fin
+    while lines and lines[0] == '':
         lines.pop(0)
-    while lines and not lines[-1].strip():
+    while lines and lines[-1] == '':
         lines.pop()
     
     if not lines:
         raise ValueError("MOL block vide après nettoyage")
     
-    # 2. Corriger première ligne (titre)
-    problematic_headers = ('-INDIGO-', 'CDK', 'ChemDraw', 'Ketcher')
-    if (not lines[0].strip() or 
-        any(lines[0].startswith(h) for h in problematic_headers)):
+    # 2. Corriger première ligne (titre) - Spécial pour INDIGO
+    if lines and (lines[0].strip().startswith('-INDIGO-') or 'INDIGO' in lines[0]):
+        print(f"🔧 Détection format INDIGO: {lines[0]}")
+        lines[0] = 'Generated by IAM from INDIGO'
+    elif (not lines[0].strip() or 
+          any(lines[0].startswith(h) for h in ('CDK', 'ChemDraw', 'Ketcher'))):
         lines[0] = 'Generated by IAM'
     
-    # 3. Corriger deuxième ligne (commentaire)
+    # 3. Assurer qu'il y a une deuxième ligne (commentaire) - nécessaire pour format MOL
     if len(lines) < 2:
-        lines.append('  IAM-Generated')
-    elif (not lines[1].strip() or 
-          any(lines[1].startswith(h) for h in problematic_headers)):
+        lines.insert(1, '  IAM-Generated')
+    elif len(lines) >= 2 and lines[1].strip() == '':
+        # Ligne vide - remplacer par commentaire valide
         lines[1] = '  IAM-Generated'
     
     # 4. Trouver et corriger la ligne de comptage
@@ -252,40 +302,28 @@ def patch_molblock(molblock: str) -> str:
     if counts_idx is None:
         raise ValueError("Ligne de comptage V2000/V3000 introuvable")
     
-    # 5. Nettoyer avant la ligne de comptage
-    before_counts = [l for l in lines[:counts_idx] if l.strip()]
+    # 5. Corriger les champs numériques de la ligne de comptage si nécessaire
+    counts_line = lines[counts_idx]
+    print(f"🔍 Ligne de comptage brute: '{counts_line}'")
     
-    # 6. Corriger les champs numériques de la ligne de comptage
-    fields = lines[counts_idx].split()
-    for j in range(min(9, len(fields))):
-        try:
-            # Convertir en entier pour assurer le format
-            value = str(int(float(fields[j])))
-            fields[j] = value.rjust(3)  # Alignement à droite sur 3 caractères
-        except Exception:
-            if j < 2:  # Les deux premiers champs sont critiques
-                fields[j] = '  0'
+    # Format spécial pour corriger INDIGO - plusieurs variantes
+    if '999 V2000' in counts_line or '0999 V2000' in counts_line:
+        # Extraire les vraies valeurs depuis le début de la ligne
+        # Format: "  6  6  0  0  0  0  0  0  0  0999 V2000"
+        parts = counts_line.split('V2000')[0].strip().split()
+        if len(parts) >= 2:
+            natoms = parts[0].strip()
+            nbonds = parts[1].strip()
+            # Reconstituer format standard
+            lines[counts_idx] = f"{natoms:>3}{nbonds:>3}  0  0  0  0  0  0  0  0999 V2000"
+            print(f"🔧 Ligne comptage corrigée: '{lines[counts_idx]}'")
     
-    fixed_counts = ''.join(fields[:2]).ljust(6) + ''.join(fields[2:])
+    # 6. S'assurer que M  END existe à la fin
+    if 'M  END' not in molblock:
+        lines.append('M  END')
     
-    # 7. Nettoyer après la ligne de comptage
-    after_counts = lines[counts_idx+1:]
-    after_counts = [l for l in after_counts if l.strip()]
-    
-    # 8. S'assurer que M  END existe
-    if after_counts and 'M  END' not in after_counts:
-        after_counts.append('M  END')
-    elif not after_counts:
-        after_counts = ['M  END']
-    
-    # 9. Supprimer tout après M  END
-    if 'M  END' in after_counts:
-        m_end_idx = after_counts.index('M  END')
-        after_counts = after_counts[:m_end_idx+1]
-    
-    # 10. Reconstruire
-    fixed_lines = before_counts + [fixed_counts] + after_counts
-    result = '\n'.join(fixed_lines)
+    # 7. Reconstruire le contenu
+    result = '\n'.join(lines)
     
     if not result.endswith('\n'):
         result += '\n'
@@ -541,20 +579,116 @@ def smiles_to_xyz():
         })
 
 
+@app.route('/debug_mol', methods=['POST'])
+def debug_mol():
+    """Endpoint de debug pour tester le parsing MOL"""
+    try:
+        data = request.get_json()
+        molfile = data.get('mol', '')
+        
+        if not molfile:
+            return jsonify({'error': 'MOL vide'}), 400
+        
+        # Étape 1: Contenu original
+        result = {
+            'original': molfile[:500],
+            'original_lines': len(molfile.splitlines())
+        }
+        
+        # Étape 2: Après patch_molblock
+        try:
+            patched = patch_molblock(molfile)
+            result['patched'] = patched[:500]
+            result['patched_lines'] = len(patched.splitlines())
+        except Exception as e:
+            result['patch_error'] = str(e)
+            return jsonify(result)
+        
+        # Étape 3: Test RDKit
+        try:
+            mol = Chem.MolFromMolBlock(patched, sanitize=False)
+            if mol:
+                result['rdkit_success'] = True
+                result['num_atoms'] = mol.GetNumAtoms()
+            else:
+                result['rdkit_success'] = False
+                result['rdkit_error'] = 'MolFromMolBlock returned None'
+        except Exception as e:
+            result['rdkit_success'] = False
+            result['rdkit_error'] = str(e)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()})
+
+
+@app.route('/debug_mol_parsing', methods=['POST'])
+def debug_mol_parsing():
+    """Debug endpoint pour analyser le parsing MOL"""
+    try:
+        data = request.get_json()
+        molfile = data.get('mol', '')
+        
+        print(f"🔍 DEBUG MOL INPUT: {repr(molfile[:100])}")
+        
+        # Afficher les lignes originales
+        lines = molfile.splitlines()
+        print(f"🔍 Lignes originales ({len(lines)}):")
+        for i, line in enumerate(lines[:10]):
+            print(f"  {i}: {repr(line)}")
+        
+        # Tester patch_molblock
+        try:
+            patched = patch_molblock(molfile)
+            print(f"🔧 PATCHED SUCCESS")
+            patched_lines = patched.splitlines()
+            print(f"🔧 Lignes patchées ({len(patched_lines)}):")
+            for i, line in enumerate(patched_lines[:10]):
+                print(f"  {i}: {repr(line)}")
+        except Exception as e:
+            print(f"❌ PATCH FAILED: {e}")
+            return jsonify({"success": False, "error": f"Patch failed: {e}"})
+        
+        # Tester RDKit
+        try:
+            mol = Chem.MolFromMolBlock(patched)
+            if mol:
+                print(f"✅ RDKit parse SUCCESS")
+                return jsonify({"success": True, "message": "RDKit parsing successful", "patched_mol": patched})
+            else:
+                print(f"❌ RDKit parse FAILED: None returned")
+                return jsonify({"success": False, "error": "RDKit returned None", "patched_mol": patched})
+        except Exception as e:
+            print(f"❌ RDKit parse ERROR: {e}")
+            return jsonify({"success": False, "error": f"RDKit error: {e}", "patched_mol": patched})
+            
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
 @app.route('/molfile_to_xyz', methods=['POST'])
 def molfile_to_xyz():
     """Endpoint pour convertir MOL en XYZ"""
     try:
         data = request.get_json()
         
-        # Support des deux formats: 'mol', 'molfile'
-        molfile = data.get('mol') or data.get('molfile', '')
+        # Support des trois formats: 'mol', 'molfile', 'mol_content'
+        molfile = data.get('mol') or data.get('molfile', '') or data.get('mol_content', '')
         
         if not molfile:
             return jsonify({
                 'success': False,
                 'error': 'Fichier MOL vide'
             }), 400
+        
+        # Vérifier RDKit avant conversion
+        if not RDKIT_AVAILABLE:
+            return jsonify({
+                'success': False,
+                'error': 'RDKit non disponible pour la conversion MOL. Veuillez installer RDKit dans l\'environnement conda.',
+                'suggestion': 'conda install -c conda-forge rdkit'
+            }), 503
         
         # Convertir avec la fonction robuste
         xyz = robust_mol_to_xyz(molfile, "molfile_endpoint")

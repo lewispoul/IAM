@@ -98,7 +98,7 @@ class IAMAutonomousAgent:
                 module_code = self.generate_demo_module(module_name, description)
             else:
                 # Mode IA avec OpenAI
-                prompt = f"""Génère un module Python complet nommé '{module_name}'.
+                prompt = f"""Génére un module Python complet nommé '{module_name}'.
 
 Description: {description}
 
@@ -111,12 +111,12 @@ Le module doit:
 3. Avoir des fonctions claires et modulaires
 4. Être prêt à l'usage
 
-Génère uniquement le code Python, sans commentaires additionnels."""
+Génére uniquement le code Python, sans commentaires additionnels."""
 
                 response = self.client.chat.completions.create(
                     model="gpt-4o",
                     messages=[
-                        {"role": "system", "content": "Tu es un expert en développement Python. Génère du code de qualité production."},
+                        {"role": "system", "content": "Tu es un expert en développement Python. Génére du code de qualité production."},
                         {"role": "user", "content": prompt}
                     ],
                     max_tokens=2000,
@@ -178,7 +178,7 @@ Le script de test doit:
 4. Utiliser des assertions claires
 5. Être exécutable directement
 
-Génère uniquement le code de test Python."""
+Génére uniquement le code de test Python."""
 
             response = self.client.chat.completions.create(
                 model="gpt-4o",
@@ -451,7 +451,7 @@ def main():
     
     unittest.main(verbosity=2, exit=False)
     
-    print("\\n" + "=" * 50)
+    print("\n" + "=" * 50)
     print("✅ Tests terminés")
     print("=" * 50)
 
