@@ -7,6 +7,7 @@ import json
 import traceback
 import sys
 import importlib
+from datetime import datetime
 
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -435,16 +436,83 @@ def generate_report():
     }
     return jsonify({'result': report})
 
-# Import des modules nécessaires
-from IAM_Knowledge.IAM_StabilityPredictor import predict_stability_logic
-from IAM_Knowledge.IAM_VoD_Predictor import predict_vod
+# Agent communication endpoints
+@app.route('/send_agent_command', methods=['POST'])
+def send_agent_command():
+    try:
+        data = request.get_json()
+        command = data.get('command', '')
+        
+        # Simulation d'une réponse d'agent
+        agent_response = {
+            'status': 'executed',
+            'command': command,
+            'response': f"Agent executed: {command}",
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        return jsonify({"success": True, "agent_response": agent_response})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
-# Dynamic import test
+@app.route('/get_agent_status', methods=['GET'])
+def get_agent_status():
+    return jsonify({
+        "status": "online",
+        "last_activity": datetime.now().isoformat(),
+        "active_jobs": 0
+    })
+
+@app.route('/save_molecule', methods=['POST'])
+def save_molecule():
+    try:
+        data = request.get_json()
+        xyz = data.get('xyz', '')
+        filename = data.get('filename', 'molecule.xyz')
+        
+        # Sauvegarde le fichier dans IAM_Results
+        save_path = os.path.join('IAM_Results', filename)
+        with open(save_path, 'w') as f:
+            f.write(xyz)
+            
+        return jsonify({"success": True, "saved_path": save_path})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/load_molecule', methods=['POST'])
+def load_molecule():
+    try:
+        data = request.get_json()
+        filename = data.get('filename', '')
+        
+        # Charge le fichier depuis IAM_Results ou IAM_Knowledge/Molecules
+        possible_paths = [
+            os.path.join('IAM_Results', filename),
+            os.path.join('IAM_Knowledge', 'Molecules', filename)
+        ]
+        
+        for path in possible_paths:
+            if os.path.exists(path):
+                with open(path, 'r') as f:
+                    xyz = f.read()
+                return jsonify({"success": True, "xyz": xyz, "loaded_from": path})
+        
+        return jsonify({"success": False, "error": "File not found"}), 404
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# Import des modules nécessaires (avec gestion d'erreur)
 try:
-    stability_module = importlib.import_module('IAM_Knowledge.IAM_StabilityPredictor')
-    print("IAM_StabilityPredictor imported successfully:", stability_module)
-except ModuleNotFoundError as e:
-    print("Dynamic import failed:", e)
+    from IAM_Knowledge.IAM_StabilityPredictor import predict_stability_logic
+except ImportError:
+    def predict_stability_logic(xyz):
+        return {"stability": "Module not available", "method": "placeholder"}
+
+try:
+    from IAM_Knowledge.IAM_VoD_Predictor import predict_vod
+except ImportError:
+    def predict_vod(xyz):
+        return {"vod": "Module not available", "method": "placeholder"}
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

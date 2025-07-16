@@ -46,8 +46,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (document.getElementById('tabOutputBtn')) document.getElementById('tabOutputBtn').addEventListener('click', function() { showTab('output'); });
 
     // --- Helper: Detect file format and render in 3Dmol.js ---
+    // Enhanced rendering logic
     function renderMoleculeAuto(contents) {
-        // Simple heuristics: XYZ starts with a number, MOL contains 'V2000' or 'V3000'
         const trimmed = contents.trim();
         let type = null;
         if (/^\d+\s*\n/.test(trimmed)) {
@@ -73,7 +73,6 @@ document.addEventListener("DOMContentLoaded", function () {
             viewer.zoomTo();
             viewer.render();
         } else if (type === 'mol') {
-            // Convert MOL to XYZ via backend for reliable 3D rendering
             fetch('/molfile_to_xyz', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -172,40 +171,20 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Submit job
+    // Enhanced event listeners
     if (document.getElementById('launchIAMBtn')) {
         document.getElementById('launchIAMBtn').addEventListener('click', async function () {
-            alert('launchIAM called');
             const fileInput = document.getElementById('xyzFile');
             const pasteInput = document.getElementById('xyzPaste').value.trim();
-            console.log('fileInput.files:', fileInput.files);
-            if (!fileInput.files.length && !pasteInput) {
-                alert('No file selected and no pasted content.');
-            }
-            if (fileInput.files.length) {
-                alert('File selected: ' + fileInput.files[0].name);
-            }
-            if (pasteInput) {
-                alert('Using pasted content.');
-            }
             let formData = new FormData();
             if (fileInput.files.length) {
                 formData.append('file', fileInput.files[0]);
             } else if (pasteInput) {
-                // Convert pasted text to a Blob and append as file
                 const blob = new Blob([pasteInput], { type: 'text/plain' });
                 formData.append('file', blob, 'pasted.xyz');
             } else {
-                alert('Veuillez sélectionner un fichier .xyz ou coller le contenu dans la zone de texte.');
+                alert('Please select a file or paste content.');
                 return;
-            }
-            formData.append('method', document.getElementById('method').value);
-            formData.append('basis', document.getElementById('basis').value);
-            formData.append('charge', document.getElementById('charge').value);
-            formData.append('multiplicity', document.getElementById('multiplicity').value);
-            formData.append('calcType', document.getElementById('calcType').value);
-            formData.append('solvent', document.getElementById('solvent').value);
-            if (document.getElementById('method').value === 'psi4') {
-                formData.append('functional', document.getElementById('functional').value);
             }
             try {
                 const response = await fetch('/run_xtb', {
@@ -213,92 +192,13 @@ document.addEventListener("DOMContentLoaded", function () {
                     body: formData
                 });
                 const result = await response.json();
-
-                // --- PATCH: Always update 3Dmol viewer with returned geometry ---
                 if (result.xyz) {
-                    const viewerDiv = document.getElementById("viewer");
-                    if (viewerDiv) {
-                        // Try to preserve background color if viewer already exists
-                        let bgColor = "white";
-                        if (viewerDiv.viewer && viewerDiv.viewer.getConfig) {
-                            const cfg = viewerDiv.viewer.getConfig();
-                            if (cfg && cfg.backgroundColor) bgColor = cfg.backgroundColor;
-                        }
-                        // Clear viewerDiv
-                        viewerDiv.innerHTML = '';
-                        let viewer;
-                        try {
-                            viewer = $3Dmol.createViewer(viewerDiv, { backgroundColor: bgColor });
-                            viewerDiv.viewer = viewer; // Store for later
-                        } catch (e) {
-                            alert('3Dmol.js failed to initialize: ' + e);
-                            throw e;
-                        }
-                        try {
-                            viewer.addModel(result.xyz.trim(), "xyz");
-                            viewer.setStyle({}, { stick: {} });
-                            viewer.zoomTo();
-                            viewer.render();
-                        } catch (e) {
-                            alert('Failed to render returned geometry: ' + e);
-                        }
-                    }
+                    renderMolecule(result.xyz);
                 } else {
-                    // If xyz missing, show error/toast
-                    if (window.showToastMsg) {
-                        showToastMsg('No geometry returned from calculation.', true);
-                    } else {
-                        alert('No geometry returned from calculation.');
-                    }
+                    alert('No geometry returned from backend.');
                 }
-                // --- END PATCH ---
-
-                // Format summary output for XTB and future Psi4
-                if (result.success && result.xtb_json) {
-                    const xtb = result.xtb_json;
-                    let html = '<table class="summary-table">';
-                    if (xtb["total energy"]) html += `<tr><td class="label-col">Total Energy (Eh)</td><td class="value-col">${xtb["total energy"]}</td></tr>`;
-                    if (xtb["HOMO-LUMO gap/eV"]) html += `<tr><td class="label-col">HOMO-LUMO gap (eV)</td><td class="value-col">${xtb["HOMO-LUMO gap/eV"]}</td></tr>`;
-                    if (xtb["dipole"]) html += `<tr><td class="label-col">Dipole moment (D)</td><td class="value-col">${xtb["dipole"]}</td></tr>`;
-                    if (xtb["xtb version"]) html += `<tr><td class="label-col">XTB version</td><td class="value-col">${xtb["xtb version"]}</td></tr>`;
-                    html += '</table>';
-                    // Collapsible section for arrays
-                    if (xtb["charges"]) {
-                        html += `<details><summary>Atomic Charges</summary><pre>${JSON.stringify(xtb["charges"], null, 2)}</pre></details>`;
-                    }
-                    if (xtb["wbo"]) {
-                        html += `<details><summary>Wiberg Bond Orders</summary><pre>${JSON.stringify(xtb["wbo"], null, 2)}</pre></details>`;
-                    }
-                    document.getElementById('summaryContent').innerHTML = html;
-                } else if (result.success && result.psi4_json) {
-                    const psi4 = result.psi4_json;
-                    let html = '<table class="summary-table">';
-                    if (psi4.final_energy !== undefined) html += `<tr><td class="label-col">Final Energy (Eh)</td><td class="value-col">${psi4.final_energy}</td></tr>`;
-                    if (psi4.psi4_version) html += `<tr><td class="label-col">Psi4 Version</td><td class="value-col">${psi4.psi4_version}</td></tr>`;
-                    html += '</table>';
-                    html += `<details><summary>Stdout</summary><pre>${psi4.stdout || ''}</pre></details>`;
-                    html += `<details><summary>Stderr</summary><pre>${psi4.stderr || ''}</pre></details>`;
-                    document.getElementById('summaryContent').innerHTML = html;
-                } else if (result.details) {
-                    document.getElementById('summaryContent').textContent = result.details;
-                } else {
-                    document.getElementById('summaryContent').textContent = JSON.stringify(result, null, 2);
-                }
-
-                // Always clear input file content before updating
-                document.getElementById('inputFileContent').textContent = '';
-                if (result.file_preview) {
-                    document.getElementById('inputFileContent').textContent = result.file_preview;
-                } else if (result.details && result.details.includes('Aucun fichier reçu')) {
-                    document.getElementById('inputFileContent').textContent = 'No file received by backend.';
-                } else {
-                    document.getElementById('inputFileContent').textContent = 'No file';
-                }
-                document.getElementById('outputFileContent').textContent = result["output_file"] || JSON.stringify(result, null, 2);
-
-                showTab('summary');
-            } catch (err) {
-                alert('Erreur réseau ou de calcul : ' + err);
+            } catch (error) {
+                alert('Error submitting job: ' + error.message);
             }
         });
     }
@@ -693,44 +593,5 @@ document.addEventListener("DOMContentLoaded", function () {
     function saveStructureToFile() {
         console.log('Saving structure to file...');
         // Logic for exporting the structure and triggering a download
-    }
-
-    // 🔧 Frontend corrections for IAM Viewer
-
-    // Add event listeners for buttons
-    document.getElementById("optimize3DButton").addEventListener("click", optimize3DStructure);
-    document.getElementById("resymmetrizeButton").addEventListener("click", resymmetrizeStructure);
-    document.getElementById("drawSymmetryElementsButton").addEventListener("click", drawSymmetryElements);
-    document.getElementById("submitJobButton").addEventListener("click", submitJob);
-    document.getElementById("IAMToolsButton").addEventListener("click", toggleIAMToolsPanel);
-
-    // 🔧 Action for the button Optimize
-    function optimize3DStructure() {
-        console.log("Optimizing 3D structure...");
-        // Placeholder logic for optimization
-    }
-
-    // 🔧 Action for the button Resymmetrize
-    function resymmetrizeStructure() {
-        console.log("Resymmetrizing structure...");
-        // Placeholder logic for resymmetrization
-    }
-
-    // 🔧 Action for the button Draw Symmetry Elements
-    function drawSymmetryElements() {
-        console.log("Drawing symmetry elements...");
-        // Placeholder logic for drawing symmetry elements
-    }
-
-    // 🔧 Action for the button Submit Job
-    function submitJob() {
-        console.log("Submitting job...");
-        // Placeholder logic for job submission
-    }
-
-    // 🔧 Action for the button IAM Tools
-    function toggleIAMToolsPanel() {
-        const panel = document.getElementById("IAMToolsPanel");
-        panel.style.display = panel.style.display === "none" ? "block" : "none";
     }
 });
