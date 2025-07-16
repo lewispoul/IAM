@@ -1,0 +1,908 @@
+<!-- MAIN TEMPLATE: This is the only source of truth for the IAM web UI. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>IAM – Molecule Viewer & XTB Engine</title>
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+    <style>
+        body {
+            background: #f6f9fb;
+            font-family: 'Segoe UI', sans-serif;
+            color: #222;
+        }
+        .dark-mode body, .dark-mode {
+            background: #181c1f !important;
+            color: #e0e0e0 !important;
+        }
+        .dark-mode .header-bar {
+            background: #111a2c !important;
+            color: #fff !important;
+            border-bottom: 2px solid #1a2636 !important;
+        }
+        .dark-mode .panel-left, .dark-mode .panel-right {
+            background: #23272b !important;
+            color: #e0e0e0 !important;
+            box-shadow: 0 2px 12px 2px #111a2c !important;
+        }
+        .dark-mode .form-control, .dark-mode .form-select {
+            background: #23272b !important;
+            color: #e0e0e0 !important;
+            border-color: #444 !important;
+        }
+        .dark-mode .nav-tabs .nav-link.active {
+            background: #23272b !important;
+            color: #fff !important;
+            border-color: #444 #444 #23272b !important;
+        }
+        .dark-mode .tab-content {
+            background: #181c1f !important;
+            color: #e0e0e0 !important;
+            border-color: #444 !important;
+        }
+        .dark-mode #viewer {
+            background: #191c22 !important;
+            border-color: #2196f3 !important;
+            width: 380px;
+            height: 380px;
+            /* Ensure not hidden */
+            display: block !important;
+            opacity: 1 !important;
+        }
+        .dark-mode .btn-primary {
+            background: #1976d2 !important;
+            border-color: #1976d2 !important;
+        }
+        .dark-mode .btn-outline-secondary, .dark-mode .btn-outline-primary, .dark-mode .btn-outline-danger, .dark-mode .btn-outline-success {
+            color: #e0e0e0 !important;
+            border-color: #888 !important;
+        }
+        .dark-mode .toast {
+            background: #23272b !important;
+            color: #e0e0e0 !important;
+        }
+        .dark-mode .bg-light {
+            background: #23272b !important;
+        }
+        .dark-mode .form-check-label {
+            color: #e0e0e0 !important;
+        }
+        .dark-mode .summary-table {
+            color: #e0e0e0 !important;
+        }
+        /* Always ensure viewer is visible and sized */
+        #viewer {
+            width: 380px;
+            height: 380px;
+            background: #fff;
+            border: 2px solid #2196f3;
+            border-radius: 8px;
+            margin: 0 auto 1.5rem auto;
+            position: relative;
+            display: block;
+            overflow: hidden;
+        }
+        .panel-right {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        /* --- Fix 3: Make summary/output/log tabs scrollable and never overflow --- */
+        #resultTabsContent { max-width: 100%; max-height: 350px; overflow-y: auto; }
+        .tab-pane { max-height: 340px; overflow-y: auto; }
+        .summary-table {
+          width: 100%;
+          table-layout: fixed;
+        }
+        .summary-table td, .summary-table th {
+          white-space: pre-wrap;
+          word-break: break-word;
+          max-width: none;
+        }
+        .summary-table td.label-col {
+          width: 1%;
+          white-space: nowrap;
+          font-weight: bold;
+        }
+        .summary-table td.value-col {
+          width: 99%;
+          max-width: 100%;
+          flex-grow: 1;
+          overflow-wrap: anywhere;
+        }
+        @media (min-width: 900px) {
+          #resultTabsContent { min-width: 600px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header-bar d-flex justify-content-between align-items-center px-4">
+        <span>IAM – Molecule Viewer & XTB Engine</span>
+        <div class="form-check form-switch ms-auto">
+            <input class="form-check-input" type="checkbox" id="darkModeSwitch">
+            <label class="form-check-label" for="darkModeSwitch" id="darkModeLabel">Dark Mode</label>
+        </div>
+    </div>
+    <div class="container-fluid">
+        <div class="row main-row d-flex flex-row justify-content-center align-items-start mt-4">
+            <!-- LEFT PANEL -->
+            <div class="col-lg-5 col-12 panel-left mb-4">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Molecule Sketcher</label>
+                    <div id="sketcher-container" class="bg-light rounded p-0 text-center" style="height: 340px;overflow:hidden;">
+                        <iframe
+                            id="ketcherFrame"
+                            src="/static/ketcher/index.html"
+                            width="100%"
+                            height="340"
+                            style="border:1px solid #d0d0d0; border-radius:6px; background:#fff"></iframe>
+                    </div>
+                    <!-- Enhanced buttons for molecular data operations -->
+                    <div class="d-flex flex-wrap gap-2 mt-2">
+                        <button id="loadFromSketcher" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-upload"></i> Load from Sketcher
+                        </button>
+                        <button id="exportSmiles" class="btn btn-outline-secondary btn-sm" title="Export to SMILES">
+                            <i class="bi bi-file-earmark-code"></i> Export SMILES
+                        </button>
+                        <button id="exportMol" class="btn btn-outline-secondary btn-sm" title="Export to MOL">
+                            <i class="bi bi-file-earmark-text"></i> Export MOL
+                        </button>
+                        <button id="exportXyz" class="btn btn-outline-secondary btn-sm" title="Export to XYZ">
+                            <i class="bi bi-file-earmark-binary"></i> Export XYZ
+                        </button>
+                        <button id="copySmiles" class="btn btn-outline-secondary btn-sm" title="Copy SMILES to clipboard">
+                            <i class="bi bi-clipboard"></i> Copy SMILES
+                        </button>
+                        <button id="copyMol" class="btn btn-outline-secondary btn-sm" title="Copy MOL to clipboard">
+                            <i class="bi bi-clipboard"></i> Copy MOL
+                        </button>
+                        <button id="copyXyz" class="btn btn-outline-secondary btn-sm" title="Copy XYZ to clipboard">
+                            <i class="bi bi-clipboard"></i> Copy XYZ
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold" for="smilesPaste">Paste SMILES</label>
+                    <div class="input-group mb-2">
+                        <input id="smilesPaste" class="form-control" placeholder="Paste SMILES here">
+                        <button id="importSmiles" class="btn btn-outline-success" type="button" title="Import SMILES">Import</button>
+                    </div>
+                    <label class="form-label fw-bold" for="molPaste">Paste MOL/XYZ</label>
+                    <div class="input-group mb-2">
+                        <textarea id="molPaste" class="form-control" rows="2" placeholder="Paste MOL or XYZ here"></textarea>
+                        <button id="importMol" class="btn btn-outline-success" type="button" title="Import MOL/XYZ">Import</button>
+                    </div>
+                    <label class="form-label fw-bold" for="xyzFile">Or upload file</label>
+                    <input type="file" id="xyzFile" class="form-control" accept=".xyz,.mol,.sdf,.smi,.smiles">
+                </div>
+                <!-- Improved job options section -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Job Options</label>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <select id="method" class="form-select">
+                                <option>XTB</option>
+                                <option disabled>DFT (soon)</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <select id="basis" class="form-select">
+                                <option>def2-SVP</option>
+                                <option>def2-TZVP</option>
+                                <option>6-31G*</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <input id="charge" class="form-control" type="number" placeholder="Charge" value="0">
+                        </div>
+                        <div class="col-6">
+                            <input id="multiplicity" class="form-control" type="number" placeholder="Multiplicity" value="1">
+                        </div>
+                    </div>
+                    <div class="mb-3 d-flex gap-2">
+                        <button id="launchIAMBtn" class="btn btn-primary job-btn flex-fill">Submit Job</button>
+                        <button id="resetBtn" class="btn btn-outline-secondary job-btn flex-fill">Reset</button>
+                    </div>
+                </div>
+            </div>
+            <!-- RIGHT PANEL -->
+            <div class="col-lg-7 col-12 panel-right mb-4 position-relative">
+                <div class="d-flex flex-row w-100 mb-2" style="gap:1.5rem;align-items:flex-start;">
+                    <!-- Advanced Controls Panel -->
+                    <div id="viewer-controls-panel" class="d-flex flex-column gap-2" style="min-width:220px;max-width:260px;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manualCoords">
+                            <label class="form-check-label" for="manualCoords">Manually alter coordinates</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manualMasses">
+                            <label class="form-check-label" for="manualMasses">Manually alter atomic masses</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="advancedOptions">
+                            <label class="form-check-label" for="advancedOptions">Advanced Options</label>
+                        </div>
+                        <div id="advancedOptionsPanel" class="ms-3 d-none flex-column gap-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="labelAtoms">
+                                <label class="form-check-label" for="labelAtoms">Label Atoms</label>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <input class="form-check-input" type="checkbox" id="useSymmetry">
+                                <label class="form-check-label mb-0" for="useSymmetry">Use Symmetry</label>
+                                <select id="symmetryGroup" class="form-select form-select-sm w-auto ms-2" disabled>
+                                    <option value="">Select Group</option>
+                                    <option value="C2v">C2v</option>
+                                    <option value="D2h">D2h</option>
+                                    <option value="Td">Td</option>
+                                    <option value="Oh">Oh</option>
+                                </select>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="d-flex flex-column gap-2" id="functional-buttons">
+                            <button id="resymmetrizeBtn" class="btn btn-outline-primary btn-sm">Resymmetrize</button>
+                            <button id="drawSymmetryBtn" class="btn btn-outline-primary btn-sm">Draw Point Group Elements</button>
+                            <button id="optimizeBtn" class="btn btn-outline-success btn-sm">Optimize Structure in 3D</button>
+                            <button id="deleteHBtn" class="btn btn-outline-danger btn-sm">Delete All Hydrogens</button>
+                            <button id="saveStructBtn" class="btn btn-outline-secondary btn-sm">Save Structure to File</button>
+                        </div>
+                    </div>
+                    <!-- Viewer Controls (background, view, etc.) -->
+                    <div class="flex-grow-1">
+                        <div id="viewer-controls" class="mb-2 d-flex gap-2 justify-content-center align-items-center">
+                            <label for="viewerBg" class="form-label mb-0 me-2">Background:</label>
+                            <select id="viewerBg" class="form-select form-select-sm w-auto">
+                                <option value="white">White</option>
+                                <option value="#f6f9fb">Light Gray</option>
+                                <option value="#e3f2fd">Pale Blue</option>
+                                <option value="transparent">Transparent</option>
+                            </select>
+                            <button id="viewerReset" class="btn btn-outline-secondary btn-sm">Reset View</button>
+                            <button id="viewerCenter" class="btn btn-outline-secondary btn-sm">Center</button>
+                            <button id="viewerRotate" class="btn btn-outline-secondary btn-sm">Toggle Rotation</button>
+                        </div>
+                        <div id="viewer"></div>
+                    </div>
+                </div>
+                <!-- Loading overlay -->
+                <div id="loadingOverlay" class="position-absolute top-0 start-0 w-100 h-100 d-none align-items-center justify-content-center" style="background:rgba(255,255,255,0.85);z-index:10;">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary mb-2" role="status"></div>
+                        <div class="fw-bold">Calculation in progress...</div>
+                    </div>
+                </div>
+                <!-- Toast notification -->
+                <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;">
+                    <div id="jobToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                            <div class="toast-body">
+                                <strong>Job Complete!</strong>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Tabs for results/output/logs -->
+                <ul class="nav nav-tabs mb-3" id="resultTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" type="button" role="tab">Summary</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="output-tab" data-bs-toggle="tab" data-bs-target="#output" type="button" role="tab">Output</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="log-tab" data-bs-toggle="tab" data-bs-target="#log" type="button" role="tab">Log</button>
+                    </li>
+                </ul>
+                <div class="tab-content" id="resultTabsContent">
+                    <div class="tab-pane fade show active tab-content" id="summary" role="tabpanel">
+                        <span id="summaryContent" style="color: #8fa9c9;">Job summary and results will appear here.</span>
+                    </div>
+                    <div class="tab-pane fade tab-content" id="output" role="tabpanel">
+                        <span id="outputFileContent" style="color: #8fa9c9;">Output file will appear here.</span>
+                    </div>
+                    <div class="tab-pane fade tab-content" id="log" role="tabpanel">
+                        <span id="logFileContent" style="color: #8fa9c9;">Log file will appear here.</span>
+                    </div>
+                </div>
+                <!-- Custom IAM Tools tab bar -->
+                <div class="tabs mb-3 d-flex flex-row gap-2">
+                    <button class="tab-button" onclick="showTab('summary')">Résumé</button>
+                    <button class="tab-button" onclick="showTab('input')">Input</button>
+                    <button class="tab-button" onclick="showTab('output')">Output</button>
+                    <button class="tab-button" onclick="showTab('log')">Log</button>
+                    <button class="tab-button" onclick="showTab('iamTools')">🧰 IAM Tools</button>
+                </div>
+                <!-- New IAM Tools tab content -->
+                <div class="tab-content" id="iamTools" style="display: none;">
+                    <h3>🧰 IAM Tools</h3>
+                    <div class="d-flex flex-column gap-3">
+                        <div>
+                            <label for="smilesInput" class="form-label">SMILES/MOL</label>
+                            <input type="text" id="smilesInput" class="form-control" placeholder="Entrez SMILES ou MOL">
+                        </div>
+                        <button id="predictStability" class="btn btn-success" onclick="predictStability()">
+                            <i class="bi bi-bar-chart"></i> Predict Stability
+                        </button>
+                        <button id="predictVoD" class="btn btn-success" onclick="predictVoD()">
+                            <i class="bi bi-speedometer"></i> Predict VoD
+                        </button>
+                        <button id="generateReport" class="btn btn-primary" onclick="generateReport()">
+                            <i class="bi bi-file-earmark-text"></i> Generate Report
+                        </button>
+                    </div>
+                    <!-- Champ pour afficher les résultats -->
+                    <div id="iam-result" class="mt-4 bg-light p-3 rounded">
+                        <h6>Results:</h6>
+                        <pre id="result-output"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+    <script>
+    // 3Dmol.js viewer initialization (always in right panel)
+    let viewer3D = null;
+    let autoRotate = false;
+    let autoRotateInterval = null;
+    let lastXyzString = null; // Track last molecule for re-rendering
+    function renderMolecule(xyzString) {
+        lastXyzString = xyzString || '';
+        const viewerDiv = document.getElementById("viewer");
+        if (viewerDiv) {
+            viewerDiv.innerHTML = "";
+            // Always re-create the viewer with the current background color
+            let bg = document.getElementById('viewerBg') ? document.getElementById('viewerBg').value : 'white';
+            viewer3D = $3Dmol.createViewer(viewerDiv, { backgroundColor: bg });
+            if (xyzString) {
+                viewer3D.addModel(xyzString, "xyz");
+                viewer3D.setStyle({}, { stick: {} });
+                viewer3D.zoomTo();
+                viewer3D.render();
+            }
+        }
+    }
+    function setViewerBg(color) {
+        if (viewer3D) {
+            viewer3D.setBackgroundColor(color);
+            viewer3D.render();
+        }
+    }
+    function resetViewer() {
+        if (viewer3D) {
+            viewer3D.zoomTo();
+            viewer3D.render();
+        }
+    }
+    function centerViewer() {
+        if (viewer3D) {
+            viewer3D.center();
+            viewer3D.render();
+        }
+    }
+    function toggleRotation() {
+        autoRotate = !autoRotate;
+        if (autoRotate && viewer3D) {
+            autoRotateInterval = setInterval(() => {
+                viewer3D.rotate(1);
+                viewer3D.render();
+            }, 50);
+        } else if (autoRotateInterval) {
+            clearInterval(autoRotateInterval);
+            autoRotateInterval = null;
+        }
+    }
+    function showLoading(show) {
+        const overlay = document.getElementById('loadingOverlay');
+        if (show) {
+            overlay.classList.remove('d-none');
+        } else {
+            overlay.classList.add('d-none');
+        }
+    }
+    function showToast() {
+        const toastEl = document.getElementById('jobToast');
+        const toast = new bootstrap.Toast(toastEl);
+        toast.show();
+    }
+    function resetAll() {
+        document.getElementById('xyzPaste').value = '';
+        document.getElementById('xyzFile').value = '';
+        document.getElementById('method').selectedIndex = 0;
+        document.getElementById('basis').selectedIndex = 0;
+        document.getElementById('charge').value = 0;
+        document.getElementById('multiplicity').value = 1;
+        renderMolecule("");
+        lastXyzString = null;
+        document.getElementById('summaryContent').innerHTML = 'Job summary and results will appear here.';
+        document.getElementById('outputFileContent').innerHTML = 'Output file will appear here.';
+        document.getElementById('logFileContent').innerHTML = 'Log file will appear here.';
+    }
+    // --- Dark Mode Toggle ---
+    function setDarkMode(enabled) {
+        if (enabled) {
+            document.documentElement.classList.add('dark-mode');
+            localStorage.setItem('iamDarkMode', '1');
+            // Set viewer background to dark if not already
+            const viewerBg = document.getElementById('viewerBg');
+            if (["white", "#f6f9fb", "#e3f2fd", "transparent"].includes(viewerBg.value)) {
+                viewerBg.value = '#23272b';
+            }
+            setViewerBg('#23272b');
+        } else {
+            document.documentElement.classList.remove('dark-mode');
+            localStorage.setItem('iamDarkMode', '0');
+            // Set viewer background to white if not already
+            const viewerBg = document.getElementById('viewerBg');
+            if (["#23272b", "#181c1f", "#111a2c"].includes(viewerBg.value)) {
+                viewerBg.value = 'white';
+            }
+            setViewerBg('white');
+        }
+        // Always re-render molecule after theme change to ensure viewer is visible
+        if (typeof renderMolecule === 'function') {
+            renderMolecule(lastXyzString);
+        }
+        // Also update summary table responsiveness in dark mode
+        const summaryTab = document.getElementById('summary');
+        if (summaryTab) {
+            summaryTab.classList.toggle('table-responsive', enabled);
+        }
+    }
+    document.addEventListener("DOMContentLoaded", function () {
+        // --- Sketcher/Ketcher Integration ---
+        const ketcherFrame = document.getElementById('ketcherFrame');
+        let currentMol = '';
+        let currentSmiles = '';
+        let currentXyz = '';
+        // Helper: send message to Ketcher iframe
+        function getKetcherMol(callback) {
+            if (!ketcherFrame) return;
+            window.addEventListener('message', function handler(e) {
+                if (e.data && e.data.type === 'ketcher:get-mol') {
+                    window.removeEventListener('message', handler);
+                    callback(e.data.mol);
+                }
+            });
+            ketcherFrame.contentWindow.postMessage({type: 'get-mol'}, '*');
+        }
+        function getKetcherSmiles(callback) {
+            if (!ketcherFrame) return;
+            window.addEventListener('message', function handler(e) {
+                if (e.data && e.data.type === 'ketcher:get-smiles') {
+                    window.removeEventListener('message', handler);
+                    callback(e.data.smiles);
+                }
+            });
+            ketcherFrame.contentWindow.postMessage({type: 'get-smiles'}, '*');
+        }
+        // Load from Sketcher (robust: get MOLFILE from Ketcher, send to /molfile_to_xyz, update UI, handle errors)
+        document.getElementById('loadFromSketcher').addEventListener('click', function () {
+            const ketcherFrame = document.getElementById('ketcherFrame');
+            if (!ketcherFrame) {
+                showToastMsg('Ketcher iframe not found!', true);
+                return;
+            }
+            let replied = false;
+            const TIMEOUT_MS = 3000;
+            function handler(event) {
+                if (!event.data || event.source !== ketcherFrame.contentWindow) return;
+                if (event.data.type === 'molfile') {
+                    replied = true;
+                    window.removeEventListener('message', handler);
+                    if (!event.data.molfile) {
+                        showToastMsg('No molecule in sketcher.', true);
+                        return;
+                    }
+                    // Preview in viewer immediately
+                    document.getElementById('molPaste').value = event.data.molfile;
+                    // Convert to XYZ for viewer preview
+                    fetch('/molfile_to_xyz', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ molfile: event.data.molfile })
+                    })
+                    .then(async r => {
+                        let data;
+                        try { data = await r.json(); } catch (jsonErr) {
+                            showToastMsg('Server error: Invalid JSON response', true, jsonErr.stack || jsonErr);
+                            throw jsonErr;
+                        }
+                        if (!r.ok || !data.success || !data.xyz) {
+                            const msg = (data && (data.error || data.details)) ? `${data.error || 'Error'}: ${data.details || ''}` : 'Unknown error occurred';
+                            showToastMsg(msg, true, data.details);
+                            renderMolecule("");
+                            return;
+                        }
+                        renderMolecule(data.xyz);
+                        showToastMsg('Molecule loaded from sketcher.');
+                    })
+                    .catch(err => {
+                        showToastMsg('Network or server error: ' + err.message, true, err.stack || err);
+                        renderMolecule("");
+                    });
+                }
+            }
+            window.addEventListener('message', handler);
+            // Send request to Ketcher for molfile
+            ketcherFrame.contentWindow.postMessage({ type: 'get-molfile' }, window.location.origin);
+            // Timeout if no response
+            setTimeout(() => {
+                if (!replied) {
+                    window.removeEventListener('message', handler);
+                    showToastMsg('No response from Ketcher sketcher. Is it loaded and same-origin?', true);
+                }
+            }, TIMEOUT_MS);
+            console.log('Load from Sketcher button clicked, postMessage sent to Ketcher.');
+        });
+        // --- Fix 2: File upload previews .xyz in 3D viewer immediately ---
+        document.getElementById('xyzFile').addEventListener('change', function () {
+            if (this.files.length) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const text = e.target.result;
+                    let input_format = text.startsWith('M  END') || text.includes('V2000') ? 'mol' : (text.includes(' ') && text.match(/\d+\n[A-Z]/) ? 'xyz' : 'smiles');
+                    if (input_format === 'xyz') {
+                        try {
+                            renderMolecule(text);
+                            showToastMsg('XYZ file previewed.');
+                        } catch (e) {
+                            showToastMsg('Invalid XYZ format: ' + e.message, true, e.stack || e);
+                            renderMolecule("");
+                        }
+                    } else if (input_format === 'mol') {
+                        fetch('/molfile_to_xyz', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({molfile: text})
+                        })
+                        .then(async r => {
+                            let data;
+                            try { data = await r.json(); } catch (jsonErr) {
+                                showToastMsg('Server error: Invalid JSON response', true, jsonErr.stack || jsonErr);
+                                throw jsonErr;
+                            }
+                            if (!r.ok || !data.success || !data.xyz) {
+                                const msg = (data && (data.error || data.details)) ? `${data.error || 'Error'}: ${data.details || ''}` : 'Unknown error occurred';
+                                showToastMsg(msg, true, data.details);
+                                renderMolecule("");
+                                return;
+                            }
+                            renderMolecule(data.xyz);
+                            showToastMsg('MOL file previewed.');
+                        })
+                        .catch(err => {
+                            showToastMsg('Network or server error: ' + err.message, true, err.stack || err);
+                            renderMolecule("");
+                        });
+                    } else {
+                        showToastMsg('Unsupported file format for preview.', true);
+                        renderMolecule("");
+                    }
+                };
+                reader.readAsText(this.files[0]);
+            }
+        });
+        // --- Fix 3: Make summary/output/log tabs scrollable and never overflow ---
+        // Add CSS for max-height and overflow
+        const style = document.createElement('style');
+        style.innerHTML = `
+        #resultTabsContent { max-width: 100%; max-height: 350px; overflow-y: auto; }
+        .tab-pane { max-height: 340px; overflow-y: auto; }
+        .summary-table {
+          width: 100%;
+          table-layout: fixed;
+        }
+        .summary-table td, .summary-table th {
+          white-space: pre-wrap;
+          word-break: break-word;
+          max-width: none;
+        }
+        .summary-table td.label-col {
+          width: 1%;
+          white-space: nowrap;
+          font-weight: bold;
+        }
+        .summary-table td.value-col {
+          width: 99%;
+          max-width: 100%;
+          flex-grow: 1;
+          overflow-wrap: anywhere;
+        }
+        @media (min-width: 900px) {
+          #resultTabsContent { min-width: 600px; }
+        }
+        `;
+        document.head.appendChild(style);
+        // Patch summary rendering to use <pre> or <details> for long arrays/objects
+        function formatSummaryValue(val) {
+            if (typeof val === 'object') {
+                const str = JSON.stringify(val, null, 2);
+                if (str.length > 60 || Array.isArray(val)) {
+                    return `<details><summary>Show data</summary><pre>${str}</pre></details>`;
+                } else {
+                    return `<pre>${str}</pre>`;
+                }
+            }
+            return val;
+        }
+        // Patch job result rendering to use formatSummaryValue
+        const origJobHandler = document.getElementById('launchIAMBtn').onclick;
+        document.getElementById('launchIAMBtn').onclick = async function () {
+            const btn = this;
+            btn.disabled = true;
+            btn.textContent = 'Submitting...';
+            showLoading(true);
+            const fileInput = document.getElementById('xyzFile');
+            const pasteInput = document.getElementById('molPaste').value.trim();
+            let formData = new FormData();
+            if (fileInput.files.length) {
+                formData.append('file', fileInput.files[0]);
+            } else if (pasteInput) {
+                const blob = new Blob([pasteInput], { type: 'text/plain' });
+                formData.append('file', blob, 'pasted.xyz');
+            } else {
+                alert('Please paste a molecule in XYZ or MOL format, or upload a file.');
+                btn.disabled = false; btn.textContent = 'Submit Job';
+                showLoading(false);
+                return;
+            }
+            formData.append('method', document.getElementById('method').value);
+            formData.append('basis', document.getElementById('basis').value);
+            formData.append('charge', document.getElementById('charge').value);
+            formData.append('multiplicity', document.getElementById('multiplicity').value);
+            document.getElementById('summaryContent').innerHTML = '<em>Submitting job...</em>';
+            document.getElementById('outputFileContent').textContent = '';
+            document.getElementById('logFileContent').textContent = '';
+            try {
+                const response = await fetch('/run_xtb', {
+                    method: 'POST',
+                    body: formData
+                });
+                let result;
+                try {
+                    result = await response.json();
+                } catch (jsonErr) {
+                    showToastMsg('Server error: Invalid JSON response', true, jsonErr.stack || jsonErr);
+                    document.getElementById('summaryContent').innerHTML = `<span style="color:#b00;">Server error: Invalid JSON response</span>`;
+                    throw jsonErr;
+                }
+                if (!response.ok || !result.success) {
+                    const msg = (result && (result.error || result.details)) ? `${result.error || 'Error'}: ${result.details || ''}` : 'Unknown error occurred';
+                    showToastMsg(msg, true, result.details);
+                    document.getElementById('summaryContent').innerHTML = `<span style='color:#b00;'>${msg}</span>`;
+                    return;
+                }
+                // Summary tab formatting (patched)
+                if (result.success && result.xtb_json) {
+                    const xtb = result.xtb_json;
+                    let html = '<table class="table table-sm table-bordered w-auto summary-table">';
+                    for (const [k, v] of Object.entries(xtb)) {
+                        if (Array.isArray(v) || (typeof v === 'object' && v !== null)) {
+                            html += `<tr><td class="label-col">${k}</td><td class="value-col"><details><summary>Show</summary><pre>${JSON.stringify(v, null, 2)}</pre></details></td></tr>`;
+                        } else {
+                            html += `<tr><td class="label-col">${k}</td><td class="value-col">${v}</td></tr>`;
+                        }
+                    }
+                    html += '</table>';
+                    document.getElementById('summaryContent').innerHTML = html;
+                } else if (result.success && result.psi4_json) {
+                    const psi4 = result.psi4_json;
+                    let html = '<table class="table table-sm table-bordered w-auto summary-table">';
+                    if (psi4.final_energy) html += `<tr><td class="label-col">Final Energy</td><td class="value-col">${formatSummaryValue(psi4.final_energy)}</td></tr>`;
+                    if (psi4.psi4_version) html += `<tr><td class="label-col">Psi4 Version</td><td class="value-col">${formatSummaryValue(psi4.psi4_version)}</td></tr>`;
+                    for (const [k, v] of Object.entries(psi4)) {
+                        if (["final_energy", "psi4_version"].includes(k)) continue;
+                        html += `<tr><td class="label-col">${k}</td><td class="value-col">${formatSummaryValue(v)}</td></tr>`;
+                    }
+                    html += '</table>';
+                    document.getElementById('summaryContent').innerHTML = html;
+                } else if (result.details) {
+                    document.getElementById('summaryContent').innerHTML = `<span style='color:#b00;'>${result.details}</span>`;
+                } else {
+                    document.getElementById('summaryContent').innerHTML = "<em>Calculation succeeded, but no summary data found.</em>";
+                }
+                // Output tab
+                if (result.output) {
+                    document.getElementById('outputFileContent').textContent = result.output;
+                } else if (result.xtb_json) {
+                    document.getElementById('outputFileContent').textContent = JSON.stringify(result.xtb_json, null, 2);
+                } else if (result.psi4_json) {
+                    document.getElementById('outputFileContent').textContent = JSON.stringify(result.psi4_json, null, 2);
+                }
+                // Log tab
+                if (result.log) {
+                    document.getElementById('logFileContent').textContent = result.log;
+                } else if (result.stdout || result.stderr) {
+                    document.getElementById('logFileContent').textContent = (result.stdout || '') + '\n' + (result.stderr || '');
+                }
+                // Render molecule if optimized geometry is present
+                let xyzToRender = null;
+                if (result.xtb_json && result.xtb_json.structure && result.xtb_json.structure.xyz) {
+                    xyzToRender = result.xtb_json.structure.xyz;
+                } else if (result.xtb_json && result.xtb_json.xyz) {
+                    xyzToRender = result.xtb_json.xyz;
+                } else if (result.xyz_result) {
+                    xyzToRender = result.xyz_result;
+                } else if (result.file_preview) {
+                    xyzToRender = result.file_preview;
+                }
+                if (xyzToRender) {
+                    renderMolecule(xyzToRender);
+                } else {
+                    showToastMsg('Warning: No geometry returned from backend.', true);
+                }
+                showToast();
+            } catch (err) {
+                showToastMsg('Network or server error: ' + err.message, true, err.stack || err);
+                document.getElementById('summaryContent').innerHTML = `<span style="color:#b00;">${err.message}</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Submit Job';
+                showLoading(false);
+            }
+        };
+        // Tab switching (Bootstrap handles, but ensure only one .active tab-content)
+        document.querySelectorAll('.nav-link').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.tab-pane').forEach(tab => tab.classList.remove('show', 'active'));
+                const target = document.querySelector(this.dataset.bsTarget);
+                if (target) target.classList.add('show', 'active');
+            });
+        });
+        // --- Advanced Viewer Controls ---
+        let manualCoords = false;
+        let manualMasses = false;
+        let atomLabelsOn = false;
+        let symmetryGroup = "";
+        let useSymmetry = false;
+        // Toggle advanced options panel
+        document.getElementById('advancedOptions').addEventListener('change', function() {
+            document.getElementById('advancedOptionsPanel').classList.toggle('d-none', !this.checked);
+        });
+        // Manual coordinates
+        document.getElementById('manualCoords').addEventListener('change', function() {
+            manualCoords = this.checked;
+            // TODO: Enable drag or show editable table/modal for coordinates
+            alert('Manual coordinate editing ' + (manualCoords ? 'enabled' : 'disabled') + ' (feature coming soon).');
+        });
+        // Manual masses
+        document.getElementById('manualMasses').addEventListener('change', function() {
+            manualMasses = this.checked;
+            // TODO: Show modal/table for atomic masses
+            alert('Manual mass editing ' + (manualMasses ? 'enabled' : 'disabled') + ' (feature coming soon).');
+        });
+        // Atom labels
+        document.getElementById('labelAtoms').addEventListener('change', function() {
+            atomLabelsOn = this.checked;
+            if (viewer3D) {
+                viewer3D.setStyle({}, atomLabelsOn ? {stick:{}, label:{fontSize:12}} : {stick:{}});
+                viewer3D.render();
+            }
+        });
+        // Use symmetry
+        document.getElementById('useSymmetry').addEventListener('change', function() {
+            useSymmetry = this.checked;
+            document.getElementById('symmetryGroup').disabled = !useSymmetry;
+        });
+        document.getElementById('symmetryGroup').addEventListener('change', function() {
+            symmetryGroup = this.value;
+        });
+        // Resymmetrize
+        document.getElementById('resymmetrizeBtn').addEventListener('click', function() {
+            // TODO: Send current structure and symmetryGroup to backend, update viewer
+            alert('Resymmetrize feature coming soon!');
+        });
+        // Draw symmetry elements
+        document.getElementById('drawSymmetryBtn').addEventListener('click', function() {
+            // TODO: Draw symmetry elements in 3Dmol.js scene
+            alert('Draw symmetry elements feature coming soon!');
+        });
+        // Optimize structure
+        document.getElementById('optimizeBtn').addEventListener('click', function() {
+            // TODO: Send current structure to backend for optimization, update viewer
+            alert('3D optimization feature coming soon!');
+        });
+        // Delete all hydrogens
+        document.getElementById('deleteHBtn').addEventListener('click', function() {
+            if (!viewer3D) return;
+            const m = viewer3D.getModel();
+            if (!m) return;
+            const atoms = m.selectedAtoms({elem:'H'});
+            m.removeAtoms(atoms);
+            viewer3D.render();
+        });
+        // Save structure
+        document.getElementById('saveStructBtn').addEventListener('click', function() {
+            if (!viewer3D) return;
+            const m = viewer3D.getModel();
+            if (!m) return;
+            const xyz = m.getMolData ? m.getMolData() : m.getXYZ ? m.getXYZ() : '';
+            const blob = new Blob([xyz], {type:'text/plain'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'structure.xyz';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+        // Dark mode switch
+        const darkSwitch = document.getElementById('darkModeSwitch');
+        // Load preference
+        const darkPref = localStorage.getItem('iamDarkMode');
+        if (darkPref === '1') {
+            darkSwitch.checked = true;
+            setDarkMode(true);
+        }
+        darkSwitch.addEventListener('change', function() {
+            setDarkMode(this.checked);
+        });
+        // Make summary/results table responsive and limit width
+        const summaryContent = document.getElementById('summaryContent');
+        if (summaryContent) {
+            summaryContent.parentElement.classList.add('table-responsive');
+            summaryContent.parentElement.style.maxWidth = '100%';
+            summaryContent.parentElement.style.overflowX = 'auto';
+        }
+        // Fix Reset button to clear all inputs, viewer, results, and Ketcher
+        document.getElementById('resetBtn').addEventListener('click', function() {
+            // Clear all inputs
+            document.getElementById('molPaste').value = '';
+            document.getElementById('smilesPaste').value = '';
+            document.getElementById('xyzFile').value = '';
+            document.getElementById('method').selectedIndex = 0;
+            document.getElementById('basis').selectedIndex = 0;
+            document.getElementById('charge').value = 0;
+            document.getElementById('multiplicity').value = 1;
+            // Clear results
+            document.getElementById('summaryContent').innerHTML = 'Job summary and results will appear here.';
+            document.getElementById('outputFileContent').innerHTML = 'Output file will appear here.';
+            document.getElementById('logFileContent').innerHTML = 'Log file will appear here.';
+            // Clear 3D viewer
+            renderMolecule("");
+            // Reset Ketcher via postMessage
+            const ketcherFrame = document.getElementById('ketcherFrame');
+            if (ketcherFrame && ketcherFrame.contentWindow) {
+                ketcherFrame.contentWindow.postMessage({type: 'reset'}, '*');
+            }
+        });
+    });
+
+    // --- Toast notification with details/copy support ---
+    function showToastMsg(msg, isError = false, details = null) {
+        const toastEl = document.getElementById('jobToast');
+        if (!toastEl) return;
+        const toastBody = toastEl.querySelector('.toast-body');
+        toastBody.innerHTML = `<strong>${isError ? 'Error' : 'Info'}:</strong> ${msg || ''}`;
+        if (details) {
+            toastBody.innerHTML += `<br><button class="btn btn-link btn-sm p-0" id="copyDetailsBtn" style="color:#fff;text-decoration:underline;">Copy details</button>`;
+        }
+        toastEl.classList.remove('text-bg-success', 'text-bg-danger');
+        toastEl.classList.add(isError ? 'text-bg-danger' : 'text-bg-success');
+        const toast = new bootstrap.Toast(toastEl);
+        toast.show();
+        if (details) {
+            setTimeout(() => {
+                const btn = document.getElementById('copyDetailsBtn');
+                if (btn) {
+                    btn.onclick = () => {
+                        navigator.clipboard.writeText(details.toString());
+                        btn.textContent = 'Copied!';
+                        setTimeout(() => { btn.textContent = 'Copy details'; }, 1200);
+                    };
+                }
+            }, 100);
+            // Also log details to console for debugging
+            console.error('[IAM Error Details]', details);
+        }
+    }
+    </script>
+</body>
+</html>

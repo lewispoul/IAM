@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 IAM Agent Autonome - Interface de Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .status.online {
+            background: #2ecc71;
+            color: white;
+        }
+        .status.offline {
+            background: #e74c3c;
+            color: white;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #ecf0f1;
+            border-radius: 10px;
+        }
+        .section h3 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #34495e;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #bdc3c7;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .form-group textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .btn.primary {
+            background: #2ecc71;
+        }
+        .btn.primary:hover {
+            background: #27ae60;
+        }
+        .btn.warning {
+            background: #f39c12;
+        }
+        .btn.warning:hover {
+            background: #e67e22;
+        }
+        .response {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .response.success {
+            background: #d5f5d5;
+            border: 1px solid #2ecc71;
+        }
+        .response.error {
+            background: #f8d7da;
+            border: 1px solid #e74c3c;
+        }
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .module-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .module-card h4 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+        }
+        .module-card p {
+            margin: 0;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        /* Animation GOD MODE */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .god-mode-indicator {
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔥 IAM Agent Autonome - GOD MODE 🔥</h1>
+            <p>⚡ Plateforme autonome avec permissions étendues ⚡</p>
+            <div class="god-mode-indicator" style="background: linear-gradient(45deg, #ff6b6b, #feca57); color: white; padding: 10px 20px; border-radius: 25px; font-weight: bold; margin: 10px 0; display: inline-block; animation: pulse 2s infinite;">
+                ⚡ GOD MODE ON ⚡
+            </div>
+            <div id="status" class="status online">� Mode autonome activé avec succès</div>
+        </div>
+
+        <!-- Section Test de Santé -->
+        <div class="section">
+            <h3>🏥 Test de Santé</h3>
+            <button class="btn" onclick="checkHealth()">Vérifier Statut</button>
+            <div id="health-response" class="response" style="display: none;"></div>
+        </div>
+
+        <!-- Section Génération de Module -->
+        <div class="section">
+            <h3>🧠 Génération de Module</h3>
+            <div class="form-group">
+                <label for="module-name">Nom du module :</label>
+                <input type="text" id="module-name" placeholder="ex: density_calculator">
+            </div>
+            <div class="form-group">
+                <label for="module-description">Description :</label>
+                <textarea id="module-description" placeholder="ex: Module qui calcule la densité d'un explosif à partir de sa formule chimique"></textarea>
+            </div>
+            <button class="btn primary" onclick="generateModule()">🚀 Générer Module</button>
+            <div id="generate-response" class="response" style="display: none;"></div>
+        </div>
+
+        <!-- Section Liste des Modules -->
+        <div class="section">
+            <h3>📋 Modules Générés</h3>
+            <button class="btn" onclick="listModules()">Actualiser Liste</button>
+            <div id="modules-list" class="modules-grid"></div>
+        </div>
+
+        <!-- Section Commandes Shell -->
+        <div class="section">
+            <h3>🖥️ Commandes Shell</h3>
+            <div class="form-group">
+                <label for="shell-command">Commande :</label>
+                <input type="text" id="shell-command" placeholder="ex: ls -la GeneratedScripts/">
+            </div>
+            <button class="btn warning" onclick="runShell()">Exécuter</button>
+            <div id="shell-response" class="response" style="display: none;"></div>
+        </div>
+
+        <!-- Section Sauvegarde -->
+        <div class="section">
+            <h3>💾 Sauvegarde</h3>
+            <button class="btn" onclick="runBackup()">Lancer Backup</button>
+            <div id="backup-response" class="response" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001';
+
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            try {
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                };
+                
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+
+                const response = await fetch(API_BASE + endpoint, options);
+                const result = await response.json();
+                return { success: true, data: result };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+
+        function showResponse(elementId, result, isSuccess = true) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = isSuccess ? 'response success' : 'response error';
+            element.textContent = JSON.stringify(result, null, 2);
+        }
+
+        async function checkHealth() {
+            const result = await apiCall('/health');
+            if (result.success) {
+                document.getElementById('status').className = 'status online';
+                document.getElementById('status').textContent = '🟢 En ligne';
+                showResponse('health-response', result.data);
+            } else {
+                document.getElementById('status').className = 'status offline';
+                document.getElementById('status').textContent = '🔴 Hors ligne';
+                showResponse('health-response', result.error, false);
+            }
+        }
+
+        async function generateModule() {
+            const name = document.getElementById('module-name').value;
+            const description = document.getElementById('module-description').value;
+            
+            if (!name || !description) {
+                alert('Veuillez remplir tous les champs');
+                return;
+            }
+
+            const data = {
+                name: name,
+                description: description,
+                output: 'json'
+            };
+
+            const result = await apiCall('/generate_module', 'POST', data);
+            showResponse('generate-response', result.success ? result.data : result.error, result.success);
+            
+            if (result.success) {
+                // Actualiser la liste des modules
+                setTimeout(listModules, 1000);
+            }
+        }
+
+        async function listModules() {
+            const result = await apiCall('/list_modules');
+            const container = document.getElementById('modules-list');
+            
+            if (result.success && result.data.modules) {
+                container.innerHTML = '';
+                result.data.modules.forEach(module => {
+                    const card = document.createElement('div');
+                    card.className = 'module-card';
+                    card.innerHTML = `
+                        <h4>${module.name}</h4>
+                        <p><strong>Créé:</strong> ${module.created}</p>
+                        <p><strong>Statut:</strong> ${module.status}</p>
+                        <button class="btn" onclick="testModule('${module.name}')">Tester</button>
+                    `;
+                    container.appendChild(card);
+                });
+            } else {
+                container.innerHTML = '<p>Aucun module trouvé</p>';
+            }
+        }
+
+        async function testModule(moduleName) {
+            const result = await apiCall('/test_module', 'POST', { module_name: moduleName });
+            alert(JSON.stringify(result, null, 2));
+        }
+
+        async function runShell() {
+            const command = document.getElementById('shell-command').value;
+            if (!command) {
+                alert('Veuillez entrer une commande');
+                return;
+            }
+
+            const result = await apiCall('/run_shell', 'POST', { command: command });
+            showResponse('shell-response', result.success ? result.data : result.error, result.success);
+        }
+
+        async function runBackup() {
+            const result = await apiCall('/run_backup', 'POST');
+            showResponse('backup-response', result.success ? result.data : result.error, result.success);
+        }
+
+        // Vérifier le statut au chargement
+        window.onload = function() {
+            checkHealth();
+            listModules();
+        };
+    </script>
+</body>
+</html>
