@@ -51,6 +51,23 @@ H     2.900   1.000   0.000"""
     
     return jsonify({"success": True, "xyz": fake_xyz})
 
+@app.route('/molfile_to_xyz', methods=['POST'])
+def molfile_to_xyz():
+    # Demo conversion from molfile to XYZ
+    fake_xyz = """9
+
+C     0.000   0.000   0.000
+C     1.500   0.000   0.000
+O     2.000   1.000   0.000
+H    -0.500   0.866   0.000
+H    -0.500  -0.866   0.000
+H    -0.500   0.000   0.866
+H     1.500   0.000  -1.000
+H     2.000   0.000   0.866
+H     2.900   1.000   0.000"""
+    
+    return jsonify({"success": True, "xyz": fake_xyz})
+
 @app.route('/send_agent_command', methods=['POST'])
 def send_agent_command():
     data = request.get_json()
@@ -76,6 +93,6 @@ def send_agent_command():
     })
 
 if __name__ == '__main__':
-    print("🚀 Starting Clean IAM Server...")
-    print("📍 Open: http://localhost:5000")
-    app.run(host='127.0.0.1', port=5000, debug=True)
+    print("🚀 Starting Clean IAM Server WSL...")
+    print("📍 Open: http://localhost:5005")
+    app.run(host='127.0.0.1', port=5005, debug=True)

@@ -1,0 +1,202 @@
+/* IAM Clean Interface Styles */
+:root {
+    --iam-primary: #1976d2;
+    --iam-secondary: #21c45d;
+    --iam-background: #f8f9fa;
+    --iam-dark: #212529;
+    --iam-light: #e9ecef;
+}
+
+/* Dark mode variables */
+body.dark-mode {
+    --iam-background: #1a1a1a;
+    --iam-light: #2d2d2d;
+    background: var(--iam-background);
+    color: #ffffff;
+}
+
+body.dark-mode .bg-light {
+    background-color: #2d2d2d !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .text-muted {
+    color: #b3b3b3 !important;
+}
+
+/* Viewer styling */
+#viewer {
+    width: 100%;
+    height: 400px;
+    border: 2px solid var(--iam-primary);
+    border-radius: 8px;
+    background: white;
+}
+
+body.dark-mode #viewer {
+    background: #2d2d2d;
+    border-color: var(--iam-secondary);
+}
+
+/* Module tabs */
+.module-tab {
+    background: transparent;
+    border: 2px solid transparent;
+    color: #666;
+    margin: 0 5px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.module-tab:hover {
+    background: var(--iam-light);
+    color: var(--iam-primary);
+}
+
+.module-tab.active {
+    background: var(--iam-primary);
+    color: white;
+    border-color: var(--iam-primary);
+}
+
+/* Input sections */
+.input-section {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+body.dark-mode .input-section {
+    background: var(--iam-light);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* Results section */
+.results-section {
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    margin-top: 20px;
+    border: 1px solid #dee2e6;
+}
+
+body.dark-mode .results-section {
+    background: var(--iam-light);
+    border-color: #495057;
+}
+
+/* Calculation parameters grid */
+.calc-params {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+/* IAM branded button */
+.btn-iam {
+    background: linear-gradient(45deg, var(--iam-primary), var(--iam-secondary));
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.btn-iam:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    color: white;
+}
+
+/* Viewer controls */
+.viewer-controls {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Content area */
+.content-area {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Loading overlay */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(248, 249, 250, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+body.dark-mode .loading-overlay {
+    background: rgba(26, 26, 26, 0.9);
+}
+
+/* Animation for module switching */
+.module-content {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .module-tab {
+        font-size: 0.8rem;
+        padding: 6px 12px;
+        margin: 2px;
+    }
+    
+    .calc-params {
+        grid-template-columns: 1fr;
+    }
+    
+    #viewer {
+        height: 300px;
+    }
+}
+
+/* Fix for Bootstrap dark mode compatibility */
+body.dark-mode .form-control {
+    background-color: #2d2d2d;
+    border-color: #495057;
+    color: #ffffff;
+}
+
+body.dark-mode .form-control:focus {
+    background-color: #2d2d2d;
+    border-color: var(--iam-secondary);
+    color: #ffffff;
+    box-shadow: 0 0 0 0.2rem rgba(33, 196, 93, 0.25);
+}
+
+body.dark-mode .form-select {
+    background-color: #2d2d2d;
+    border-color: #495057;
+    color: #ffffff;
+}
+
+body.dark-mode .table {
+    color: #ffffff;
+}
+
+body.dark-mode .table td {
+    border-color: #495057;
+}
