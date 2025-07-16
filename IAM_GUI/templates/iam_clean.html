@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IAM – Integrated Analysis & Modeling Platform</title>
+    
+    <!-- Bootstrap 5 & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- 3Dmol.js for molecular visualization -->
+    <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+    
+    <style>
+        :root {
+            --iam-primary: #1976d2;
+            --iam-secondary: #21c45d;
+            --iam-background: #f8f9fa;
+            --iam-dark: #212529;
+        }
+
+        body {
+            background: var(--iam-background);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .god-mode-banner {
+            background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
+            color: white;
+            padding: 8px 0;
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .main-header {
+            background: var(--iam-primary);
+            color: white;
+            padding: 15px 0;
+        }
+
+        .module-tabs {
+            background: #e9ecef;
+            padding: 10px 0;
+            border-bottom: 2px solid var(--iam-primary);
+        }
+
+        .module-tab {
+            background: transparent;
+            border: none;
+            color: #6c757d;
+            padding: 10px 20px;
+            margin: 0 5px;
+            border-radius: 8px 8px 0 0;
+            transition: all 0.3s;
+        }
+
+        .module-tab.active {
+            background: var(--iam-primary);
+            color: white;
+        }
+
+        .module-tab:hover {
+            background: var(--iam-primary);
+            color: white;
+        }
+
+        .content-area {
+            background: white;
+            margin: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        #viewer {
+            width: 100%;
+            height: 400px;
+            border: 2px solid var(--iam-primary);
+            border-radius: 8px;
+            background: white;
+            margin: 15px 0;
+        }
+
+        .viewer-controls {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+
+        .input-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .results-section {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .calc-params {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-online { background: #28a745; }
+        .status-offline { background: #dc3545; }
+
+        .terminal-output {
+            background: #1e1e1e;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            padding: 15px;
+            border-radius: 4px;
+            height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .experiment-card {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            transition: all 0.3s;
+        }
+
+        .experiment-card:hover {
+            border-color: var(--iam-primary);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn-iam {
+            background: var(--iam-primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+
+        .btn-iam:hover {
+            background: #1565c0;
+            color: white;
+        }
+
+        .dark-mode {
+            background: var(--iam-dark) !important;
+            color: white !important;
+        }
+
+        .dark-mode .content-area {
+            background: #343a40 !important;
+            color: white;
+        }
+
+        .dark-mode .input-section {
+            background: #495057 !important;
+            color: white;
+        }
+
+        .dark-mode .results-section {
+            background: #495057 !important;
+            border-color: #6c757d !important;
+            color: white;
+        }
+
+        /* Ensure no element blocks the view */
+        * {
+            position: relative;
+            z-index: auto;
+        }
+
+        .modal, .dropdown-menu {
+            z-index: 1050;
+        }
+
+        .toast {
+            z-index: 1060;
+        }
+    </style>
+</head>
+<body>
+    <!-- God Mode Banner -->
+    <div class="god-mode-banner">
+        ⚡ GOD MODE ACTIVATED - Full Control Enabled
+        <button id="darkModeToggle" class="btn btn-sm btn-outline-light float-end me-3">
+            <i class="bi bi-moon"></i> Mode Sombre
+        </button>
+    </div>
+
+    <!-- Main Header -->
+    <div class="main-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h4><i class="bi bi-atom"></i> IAM Platform - Molecule Viewer & XTB Engine</h4>
+                </div>
+                <div class="col-md-6 text-end">
+                    <span class="status-indicator status-online"></span>
+                    <span>System Online</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Module Navigation -->
+    <div class="module-tabs">
+        <div class="container-fluid">
+            <div class="text-center">
+                <button class="module-tab active" onclick="showModule('computational')">
+                    <i class="bi bi-calculator"></i> Computational Chemistry
+                </button>
+                <button class="module-tab" onclick="showModule('performance')">
+                    <i class="bi bi-speedometer2"></i> Performance Prediction
+                </button>
+                <button class="module-tab" onclick="showModule('stoichiometry')">
+                    <i class="bi bi-diagram-3"></i> Stoichiometry
+                </button>
+                <button class="module-tab" onclick="showModule('agent')">
+                    <i class="bi bi-robot"></i> Autonomous Agent
+                </button>
+                <button class="module-tab" onclick="showModule('experiments')">
+                    <i class="bi bi-flask"></i> Lab Experiments
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Area -->
+    <div class="content-area">
+        <!-- Computational Chemistry Module -->
+        <div id="computational-module" class="module-content">
+            <div class="row">
+                <!-- Left Panel - Input -->
+                <div class="col-lg-6">
+                    <div class="input-section">
+                        <h5><i class="bi bi-pencil-square"></i> Molecule Input</h5>
+                        
+                        <!-- Sketcher -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Sketcher Moléculaire</label>
+                            <div style="height: 300px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+                                <iframe id="ketcherFrame" src="/static/ketcher/index.html" 
+                                        width="100%" height="100%" frameborder="0"></iframe>
+                            </div>
+                            <div class="mt-2">
+                                <button id="loadFromSketcher" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-upload"></i> Charger du Sketcher
+                                </button>
+                                <button id="clearSketcher" class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-x-circle"></i> Effacer
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- SMILES Input -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">SMILES Input</label>
+                            <div class="input-group">
+                                <input id="smilesInput" class="form-control" placeholder="CCO">
+                                <button id="loadSmiles" class="btn btn-outline-success">Charger</button>
+                            </div>
+                        </div>
+
+                        <!-- File Upload -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Upload File</label>
+                            <input type="file" id="moleculeFile" class="form-control" accept=".xyz,.mol,.sdf">
+                        </div>
+
+                        <!-- Calculation Parameters -->
+                        <div class="calc-params">
+                            <div>
+                                <label class="form-label">Method</label>
+                                <select id="method" class="form-select">
+                                    <option value="xtb">XTB (GFN2)</option>
+                                    <option value="dft">DFT (bientôt)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="form-label">Calculation Type</label>
+                                <select id="calcType" class="form-select">
+                                    <option value="opt">Optimization</option>
+                                    <option value="sp">Single Point</option>
+                                    <option value="freq">Frequencies</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="form-label">Charge</label>
+                                <input id="charge" class="form-control" type="number" value="0">
+                            </div>
+                            <div>
+                                <label class="form-label">Multiplicity</label>
+                                <input id="multiplicity" class="form-control" type="number" value="1">
+                            </div>
+                        </div>
+
+                        <button id="submitJob" class="btn btn-iam w-100">
+                            <i class="bi bi-play-fill"></i> Submit Job
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Panel - Viewer & Results -->
+                <div class="col-lg-6">
+                    <!-- 3D Viewer -->
+                    <div class="text-center">
+                        <div id="viewer"></div>
+                        <div class="viewer-controls">
+                            <button id="resetView" class="btn btn-outline-secondary btn-sm">Reset View</button>
+                            <button id="centerView" class="btn btn-outline-secondary btn-sm">Center</button>
+                            <select id="viewerStyle" class="form-select form-select-sm" style="width: auto; display: inline-block;">
+                                <option value="stick">Stick</option>
+                                <option value="sphere">Sphere</option>
+                                <option value="cartoon">Cartoon</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Results -->
+                    <div class="results-section">
+                        <ul class="nav nav-tabs" id="resultTabs">
+                            <li class="nav-item">
+                                <button class="nav-link active" onclick="showResults('summary')">Summary</button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" onclick="showResults('output')">Output</button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" onclick="showResults('log')">Log</button>
+                            </li>
+                        </ul>
+                        <div class="mt-3">
+                            <div id="summary-results">
+                                <em>Run a calculation to see results...</em>
+                            </div>
+                            <div id="output-results" style="display: none;">
+                                <em>Output will appear here...</em>
+                            </div>
+                            <div id="log-results" style="display: none;">
+                                <em>Log will appear here...</em>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Prediction Module -->
+        <div id="performance-module" class="module-content" style="display: none;">
+            <div class="input-section">
+                <h5><i class="bi bi-speedometer2"></i> Performance Prediction</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Molecular Formula</label>
+                            <input type="text" id="molecularFormula" class="form-control" placeholder="C4H8N8O8">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Density (g/cm³)</label>
+                            <input type="number" id="density" class="form-control" step="0.01" placeholder="1.80">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Enthalpy of Formation (kJ/mol)</label>
+                            <input type="number" id="enthalpy" class="form-control" step="0.1" placeholder="150.0">
+                        </div>
+                        <button id="predictVoD" class="btn btn-iam">
+                            <i class="bi bi-rocket"></i> Predict VoD
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <div id="vodResults" class="results-section">
+                            <em>Predictions will appear here...</em>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stoichiometry Module -->
+        <div id="stoichiometry-module" class="module-content" style="display: none;">
+            <div class="input-section">
+                <h5><i class="bi bi-diagram-3"></i> Stoichiometry Calculator</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Reaction Equation</label>
+                            <textarea id="reactionEquation" class="form-control" rows="3" 
+                                      placeholder="C4H8N8O8 + O2 → CO2 + H2O + N2"></textarea>
+                        </div>
+                        <button id="balanceEquation" class="btn btn-iam">
+                            <i class="bi bi-balance"></i> Balance Equation
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <div id="stoichiometryResults" class="results-section">
+                            <em>Balanced equation will appear here...</em>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Autonomous Agent Module -->
+        <div id="agent-module" class="module-content" style="display: none;">
+            <div class="input-section">
+                <h5><i class="bi bi-robot"></i> Autonomous Agent</h5>
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="terminal-output" id="agentTerminal">
+IAM Agent v1.0 Ready
+Type 'help' for available commands
+iam@node:~$ 
+                        </div>
+                        <div class="input-group mt-2">
+                            <span class="input-group-text">iam@node:~$</span>
+                            <input type="text" id="agentCommand" class="form-control" placeholder="Enter command...">
+                            <button id="sendCommand" class="btn btn-iam">Send</button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="results-section">
+                            <h6>Agent Status</h6>
+                            <div class="mb-2">
+                                <span class="status-indicator status-online"></span>
+                                <span>Online</span>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button id="analyzeFolder" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-folder"></i> Analyze Folder
+                                </button>
+                                <button id="runBenchmark" class="btn btn-outline-success btn-sm">
+                                    <i class="bi bi-graph-up"></i> Run Benchmark
+                                </button>
+                                <button id="extractPDF" class="btn btn-outline-warning btn-sm">
+                                    <i class="bi bi-file-pdf"></i> Extract PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lab Experiments Module -->
+        <div id="experiments-module" class="module-content" style="display: none;">
+            <div class="input-section">
+                <h5><i class="bi bi-flask"></i> Lab Experiments</h5>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Physical Chemistry</h6>
+                        
+                        <div class="experiment-card">
+                            <h6>Electron-Electron Repulsion</h6>
+                            <p><strong>Reference:</strong> Larsen, D.L. (2016)</p>
+                            <div class="btn-group w-100">
+                                <button class="btn btn-outline-primary btn-sm">Background Theory</button>
+                                <button class="btn btn-outline-primary btn-sm">Prelab</button>
+                                <button class="btn btn-iam btn-sm">Lab Experiment</button>
+                            </div>
+                        </div>
+
+                        <div class="experiment-card">
+                            <h6>CO Potential Energy Surface</h6>
+                            <p><strong>Reference:</strong> Perri, M.J. (2017)</p>
+                            <div class="btn-group w-100">
+                                <button class="btn btn-outline-primary btn-sm">Background Theory</button>
+                                <button class="btn btn-iam btn-sm">Lab Experiment</button>
+                            </div>
+                        </div>
+
+                        <div class="experiment-card">
+                            <h6>Valence Electrons (POGIL-PCL)</h6>
+                            <p><strong>Reference:</strong> Melissa Reeves, POGIL-PCL Group (2016)</p>
+                            <button class="btn btn-iam w-100">Lab Experiment</button>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <h6>Reaction Mechanisms</h6>
+                        
+                        <div class="experiment-card">
+                            <h6>Molecular Orbitals & Vibrational Spectra</h6>
+                            <p><strong>Reference:</strong> Perri, M.J. (2016)</p>
+                            <div class="btn-group w-100">
+                                <button class="btn btn-outline-primary btn-sm">Background Theory</button>
+                                <button class="btn btn-iam btn-sm">Lab Experiment</button>
+                            </div>
+                        </div>
+
+                        <div class="experiment-card">
+                            <h6>Computational Thermochemistry (POGIL-PCL)</h6>
+                            <p><strong>Reference:</strong> Melissa S Reeves et al., POGIL-PCL Group (2016)</p>
+                            <button class="btn btn-iam w-100">Lab Experiment</button>
+                        </div>
+
+                        <div class="experiment-card">
+                            <h6>Suzuki-Miyaura Coupling</h6>
+                            <p><strong>Reference:</strong> Hill, N. J. et al. (2014)</p>
+                            <div class="btn-group w-100">
+                                <button class="btn btn-outline-primary btn-sm">Background Theory</button>
+                                <button class="btn btn-iam btn-sm">Lab Experiment</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Global variables
+        let viewer;
+        let currentMolecule = null;
+
+        // Initialize 3Dmol viewer
+        function initViewer() {
+            const element = document.getElementById('viewer');
+            const config = { backgroundColor: 'white' };
+            viewer = $3Dmol.createViewer(element, config);
+            viewer.setBackgroundColor(0xffffff);
+            viewer.render();
+        }
+
+        // Module navigation
+        function showModule(moduleId) {
+            // Hide all modules
+            document.querySelectorAll('.module-content').forEach(el => {
+                el.style.display = 'none';
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.module-tab').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            // Show selected module
+            document.getElementById(moduleId + '-module').style.display = 'block';
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+
+        // Results navigation
+        function showResults(tabName) {
+            // Hide all result divs
+            document.querySelectorAll('#summary-results, #output-results, #log-results').forEach(el => {
+                el.style.display = 'none';
+            });
+            
+            // Remove active class from all result tabs
+            document.querySelectorAll('#resultTabs .nav-link').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            // Show selected result div
+            document.getElementById(tabName + '-results').style.display = 'block';
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+
+        // Load molecule from SMILES
+        function loadFromSMILES() {
+            const smiles = document.getElementById('smilesInput').value;
+            if (!smiles) {
+                alert('Please enter a SMILES string');
+                return;
+            }
+            
+            fetch('/smiles_to_xyz', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ smiles: smiles })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    renderMolecule(data.xyz);
+                    showToast('Molecule loaded from SMILES', 'success');
+                } else {
+                    showToast('Error: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Network error: ' + error.message, 'error');
+            });
+        }
+
+        // Render molecule in 3Dmol viewer
+        function renderMolecule(xyzData) {
+            viewer.clear();
+            viewer.addModel(xyzData, 'xyz');
+            viewer.setStyle({}, {stick: {radius: 0.2}, sphere: {scale: 0.3}});
+            viewer.zoomTo();
+            viewer.render();
+            currentMolecule = xyzData;
+        }
+
+        // Submit calculation
+        function submitCalculation() {
+            if (!currentMolecule) {
+                showToast('Please load a molecule first', 'warning');
+                return;
+            }
+            
+            const formData = new FormData();
+            const blob = new Blob([currentMolecule], { type: 'text/plain' });
+            formData.append('file', blob, 'molecule.xyz');
+            
+            showToast('Calculation submitted...', 'info');
+            
+            fetch('/run_xtb', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayResults(data);
+                    showToast('Calculation completed successfully', 'success');
+                } else {
+                    showToast('Calculation failed: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Network error: ' + error.message, 'error');
+            });
+        }
+
+        // Display calculation results
+        function displayResults(data) {
+            const summaryDiv = document.getElementById('summary-results');
+            
+            if (data.xtb_json) {
+                const results = data.xtb_json;
+                summaryDiv.innerHTML = `
+                    <table class="table table-sm">
+                        <tr><td><strong>Energy:</strong></td><td>${results.total_energy || 'N/A'} Hartree</td></tr>
+                        <tr><td><strong>HOMO:</strong></td><td>${results.homo || 'N/A'} eV</td></tr>
+                        <tr><td><strong>LUMO:</strong></td><td>${results.lumo || 'N/A'} eV</td></tr>
+                        <tr><td><strong>Gap:</strong></td><td>${results.gap || 'N/A'} eV</td></tr>
+                    </table>
+                `;
+                
+                // Update optimized geometry if available
+                if (data.xyz) {
+                    renderMolecule(data.xyz);
+                }
+            }
+        }
+
+        // Agent command
+        function sendAgentCommand() {
+            const command = document.getElementById('agentCommand').value;
+            if (!command) return;
+            
+            const terminal = document.getElementById('agentTerminal');
+            terminal.innerHTML += '\niam@node:~$ ' + command;
+            
+            fetch('/send_agent_command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command: command })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    terminal.innerHTML += '\n' + data.agent_response.response;
+                } else {
+                    terminal.innerHTML += '\nError: ' + data.error;
+                }
+                terminal.scrollTop = terminal.scrollHeight;
+            });
+            
+            document.getElementById('agentCommand').value = '';
+        }
+
+        // Dark mode toggle
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+        }
+
+        // Toast notifications
+        function showToast(message, type = 'info') {
+            // Simple alert for now - can be enhanced with Bootstrap toasts
+            alert(message);
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            initViewer();
+            
+            // Bind event listeners
+            document.getElementById('loadSmiles')?.addEventListener('click', loadFromSMILES);
+            document.getElementById('submitJob')?.addEventListener('click', submitCalculation);
+            document.getElementById('sendCommand')?.addEventListener('click', sendAgentCommand);
+            document.getElementById('darkModeToggle')?.addEventListener('click', toggleDarkMode);
+            
+            // Enter key for agent command
+            document.getElementById('agentCommand')?.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendAgentCommand();
+                }
+            });
+            
+            console.log('IAM Platform initialized successfully');
+        });
+    </script>
+</body>
+</html>

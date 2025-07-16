@@ -1,121 +1,19 @@
-<!-- MAIN TEMPLATE: This is the only source of truth for the IAM web UI. -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>IAM – Molecule Viewer & XTB Engine</title>
-    <!-- Bootstrap 5 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IAM – Integrated Analysis & Modeling Platform</title>
+    
+    <!-- Bootstrap 5 & Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- 3Dmol.js for molecular visualization -->
     <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
-    <style>
-        body {
-            background: #f6f9fb;
-            font-family: 'Segoe UI', sans-serif;
-            color: #222;
-        }
-        .dark-mode body, .dark-mode {
-            background: #181c1f !important;
-            color: #e0e0e0 !important;
-        }
-        .dark-mode .header-bar {
-            background: #111a2c !important;
-            color: #fff !important;
-            border-bottom: 2px solid #1a2636 !important;
-        }
-        .dark-mode .panel-left, .dark-mode .panel-right {
-            background: #23272b !important;
-            color: #e0e0e0 !important;
-            box-shadow: 0 2px 12px 2px #111a2c !important;
-        }
-        .dark-mode .form-control, .dark-mode .form-select {
-            background: #23272b !important;
-            color: #e0e0e0 !important;
-            border-color: #444 !important;
-        }
-        .dark-mode .nav-tabs .nav-link.active {
-            background: #23272b !important;
-            color: #fff !important;
-            border-color: #444 #444 #23272b !important;
-        }
-        .dark-mode .tab-content {
-            background: #181c1f !important;
-            color: #e0e0e0 !important;
-            border-color: #444 !important;
-        }
-        .dark-mode #viewer {
-            background: #191c22 !important;
-            border-color: #2196f3 !important;
-            width: 380px;
-            height: 380px;
-            /* Ensure not hidden */
-            display: block !important;
-            opacity: 1 !important;
-        }
-        .dark-mode .btn-primary {
-            background: #1976d2 !important;
-            border-color: #1976d2 !important;
-        }
-        .dark-mode .btn-outline-secondary, .dark-mode .btn-outline-primary, .dark-mode .btn-outline-danger, .dark-mode .btn-outline-success {
-            color: #e0e0e0 !important;
-            border-color: #888 !important;
-        }
-        .dark-mode .toast {
-            background: #23272b !important;
-            color: #e0e0e0 !important;
-        }
-        .dark-mode .bg-light {
-            background: #23272b !important;
-        }
-        .dark-mode .form-check-label {
-            color: #e0e0e0 !important;
-        }
-        .dark-mode .summary-table {
-            color: #e0e0e0 !important;
-        }
-        /* Always ensure viewer is visible and sized */
-        #viewer {
-            width: 380px;
-            height: 380px;
-            background: #fff;
-            border: 2px solid #2196f3;
-            border-radius: 8px;
-            margin: 0 auto 1.5rem auto;
-            position: relative;
-            display: block;
-            overflow: hidden;
-        }
-        .panel-right {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        /* --- Fix 3: Make summary/output/log tabs scrollable and never overflow --- */
-        #resultTabsContent { max-width: 100%; max-height: 350px; overflow-y: auto; }
-        .tab-pane { max-height: 340px; overflow-y: auto; }
-        .summary-table {
-          width: 100%;
-          table-layout: fixed;
-        }
-        .summary-table td, .summary-table th {
-          white-space: pre-wrap;
-          word-break: break-word;
-          max-width: none;
-        }
-        .summary-table td.label-col {
-          width: 1%;
-          white-space: nowrap;
-          font-weight: bold;
-        }
-        .summary-table td.value-col {
-          width: 99%;
-          max-width: 100%;
-          flex-grow: 1;
-          overflow-wrap: anywhere;
-        }
-        @media (min-width: 900px) {
-          #resultTabsContent { min-width: 600px; }
-        }
-    </style>
+    
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="header-bar d-flex justify-content-between align-items-center px-4">
@@ -139,14 +37,29 @@
                             height="340"
                             style="border:1px solid #d0d0d0; border-radius:6px; background:#fff"></iframe>
                     </div>
+                    <!-- Enhanced buttons for molecular data operations -->
                     <div class="d-flex flex-wrap gap-2 mt-2">
-                        <button id="loadFromSketcher" class="btn btn-outline-primary btn-sm">Load from Sketcher</button>
-                        <button id="exportSmiles" class="btn btn-outline-secondary btn-sm" title="Export as SMILES">Export SMILES</button>
-                        <button id="exportMol" class="btn btn-outline-secondary btn-sm" title="Export as MOL">Export MOL</button>
-                        <button id="exportXyz" class="btn btn-outline-secondary btn-sm" title="Export as XYZ">Export XYZ</button>
-                        <button id="copySmiles" class="btn btn-outline-secondary btn-sm" title="Copy SMILES to clipboard">Copy SMILES</button>
-                        <button id="copyMol" class="btn btn-outline-secondary btn-sm" title="Copy MOL to clipboard">Copy MOL</button>
-                        <button id="copyXyz" class="btn btn-outline-secondary btn-sm" title="Copy XYZ to clipboard">Copy XYZ</button>
+                        <button id="loadFromSketcher" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-upload"></i> Load from Sketcher
+                        </button>
+                        <button id="exportSmiles" class="btn btn-outline-secondary btn-sm" title="Export to SMILES">
+                            <i class="bi bi-file-earmark-code"></i> Export SMILES
+                        </button>
+                        <button id="exportMol" class="btn btn-outline-secondary btn-sm" title="Export to MOL">
+                            <i class="bi bi-file-earmark-text"></i> Export MOL
+                        </button>
+                        <button id="exportXyz" class="btn btn-outline-secondary btn-sm" title="Export to XYZ">
+                            <i class="bi bi-file-earmark-binary"></i> Export XYZ
+                        </button>
+                        <button id="copySmiles" class="btn btn-outline-secondary btn-sm" title="Copy SMILES to clipboard">
+                            <i class="bi bi-clipboard"></i> Copy SMILES
+                        </button>
+                        <button id="copyMol" class="btn btn-outline-secondary btn-sm" title="Copy MOL to clipboard">
+                            <i class="bi bi-clipboard"></i> Copy MOL
+                        </button>
+                        <button id="copyXyz" class="btn btn-outline-secondary btn-sm" title="Copy XYZ to clipboard">
+                            <i class="bi bi-clipboard"></i> Copy XYZ
+                        </button>
                     </div>
                 </div>
                 <div class="mb-3">
@@ -163,6 +76,7 @@
                     <label class="form-label fw-bold" for="xyzFile">Or upload file</label>
                     <input type="file" id="xyzFile" class="form-control" accept=".xyz,.mol,.sdf,.smi,.smiles">
                 </div>
+                <!-- Improved job options section -->
                 <div class="mb-3">
                     <label class="form-label fw-bold">Job Options</label>
                     <div class="row g-2">
@@ -186,10 +100,10 @@
                             <input id="multiplicity" class="form-control" type="number" placeholder="Multiplicity" value="1">
                         </div>
                     </div>
-                </div>
-                <div class="mb-3 d-flex gap-2">
-                    <button id="launchIAMBtn" class="btn btn-primary job-btn flex-fill">Submit Job</button>
-                    <button id="resetBtn" class="btn btn-outline-secondary job-btn flex-fill">Reset</button>
+                    <div class="mb-3 d-flex gap-2">
+                        <button id="launchIAMBtn" class="btn btn-primary job-btn flex-fill">Submit Job</button>
+                        <button id="resetBtn" class="btn btn-outline-secondary job-btn flex-fill">Reset</button>
+                    </div>
                 </div>
             </div>
             <!-- RIGHT PANEL -->
@@ -227,11 +141,13 @@
                             </div>
                         </div>
                         <hr class="my-2">
-                        <button id="resymmetrizeBtn" class="btn btn-outline-primary btn-sm mb-1">Resymmetrize</button>
-                        <button id="drawSymmetryBtn" class="btn btn-outline-primary btn-sm mb-1">Draw Point Group Elements</button>
-                        <button id="optimizeBtn" class="btn btn-outline-success btn-sm mb-1">Optimize Structure in 3D</button>
-                        <button id="deleteHBtn" class="btn btn-outline-danger btn-sm mb-1">Delete All Hydrogens</button>
-                        <button id="saveStructBtn" class="btn btn-outline-secondary btn-sm">Save Structure to File</button>
+                        <div class="d-flex flex-column gap-2" id="functional-buttons">
+                            <button id="resymmetrizeBtn" class="btn btn-outline-primary btn-sm">Resymmetrize</button>
+                            <button id="drawSymmetryBtn" class="btn btn-outline-primary btn-sm">Draw Point Group Elements</button>
+                            <button id="optimizeBtn" class="btn btn-outline-success btn-sm">Optimize Structure in 3D</button>
+                            <button id="deleteHBtn" class="btn btn-outline-danger btn-sm">Delete All Hydrogens</button>
+                            <button id="saveStructBtn" class="btn btn-outline-secondary btn-sm">Save Structure to File</button>
+                        </div>
                     </div>
                     <!-- Viewer Controls (background, view, etc.) -->
                     <div class="flex-grow-1">
@@ -250,15 +166,75 @@
                         <div id="viewer"></div>
                     </div>
                 </div>
-                <!-- Loading overlay -->
-                <div id="loadingOverlay" class="position-absolute top-0 start-0 w-100 h-100 d-none align-items-center justify-content-center" style="background:rgba(255,255,255,0.85);z-index:10;">
-                    <div class="text-center">
-                        <div class="spinner-border text-primary mb-2" role="status"></div>
-                        <div class="fw-bold">Calculation in progress...</div>
+                <!-- Results Section -->
+                <div class="results-section mt-3">
+                    <!-- Simple tabs without conflicting Bootstrap structures -->
+                    <div class="custom-tabs mb-3">
+                        <button class="tab-btn active" onclick="showResultTab('summary')">Summary</button>
+                        <button class="tab-btn" onclick="showResultTab('output')">Output</button>
+                        <button class="tab-btn" onclick="showResultTab('log')">Log</button>
+                        <button class="tab-btn" onclick="showResultTab('tools')">🧰 Tools</button>
+                    </div>
+                    
+                    <!-- Tab contents -->
+                    <div class="tab-contents">
+                        <div class="tab-panel active" id="tab-summary">
+                            <div class="p-3 bg-light rounded">
+                                <span id="summaryContent" class="text-muted">Run a calculation to see results...</span>
+                            </div>
+                        </div>
+                        
+                        <div class="tab-panel d-none" id="tab-output">
+                            <div class="p-3 bg-light rounded">
+                                <pre id="outputFileContent" class="text-muted">Output file will appear here.</pre>
+                            </div>
+                        </div>
+                        
+                        <div class="tab-panel d-none" id="tab-log">
+                            <div class="p-3 bg-light rounded">
+                                <pre id="logFileContent" class="text-muted">Log file will appear here.</pre>
+                            </div>
+                        </div>
+                        
+                        <div class="tab-panel d-none" id="tab-tools">
+                            <div class="p-3">
+                                <h5>🧰 IAM Tools</h5>
+                                <div class="d-flex flex-column gap-3">
+                                    <div>
+                                        <label for="smilesInput" class="form-label">SMILES/MOL Input</label>
+                                        <input type="text" id="smilesInput" class="form-control" placeholder="Enter SMILES or MOL">
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button id="predictStability" class="btn btn-success btn-sm" onclick="predictStability()">
+                                            <i class="bi bi-bar-chart"></i> Predict Stability
+                                        </button>
+                                        <button id="predictVoD" class="btn btn-success btn-sm" onclick="predictVoD()">
+                                            <i class="bi bi-speedometer"></i> Predict VoD
+                                        </button>
+                                        <button id="generateReport" class="btn btn-primary btn-sm" onclick="generateReport()">
+                                            <i class="bi bi-file-earmark-text"></i> Generate Report
+                                        </button>
+                                    </div>
+                                    <div id="iam-result" class="mt-3 p-3 bg-light rounded">
+                                        <h6>Results:</h6>
+                                        <pre id="result-output" class="text-muted">Tool results will appear here.</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+                
+                <!-- Loading overlay - simplified -->
+                <div id="loadingOverlay" class="position-absolute top-0 start-0 w-100 h-100 d-none align-items-center justify-content-center" style="background:rgba(248,249,250,0.9);backdrop-filter:blur(2px);">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary mb-2" role="status"></div>
+                        <div class="fw-bold">Processing calculation...</div>
+                    </div>
+                </div>
+                
                 <!-- Toast notification -->
-                <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;">
+                <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050;">
                     <div id="jobToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
                         <div class="d-flex">
                             <div class="toast-body">
@@ -267,48 +243,6 @@
                             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                         </div>
                     </div>
-                </div>
-                <!-- Tabs for results/output/logs -->
-                <ul class="nav nav-tabs mb-3" id="resultTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" type="button" role="tab">Summary</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="output-tab" data-bs-toggle="tab" data-bs-target="#output" type="button" role="tab">Output</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="log-tab" data-bs-toggle="tab" data-bs-target="#log" type="button" role="tab">Log</button>
-                    </li>
-                </ul>
-                <div class="tab-content" id="resultTabsContent">
-                    <div class="tab-pane fade show active tab-content" id="summary" role="tabpanel">
-                        <span id="summaryContent" style="color: #8fa9c9;">Job summary and results will appear here.</span>
-                    </div>
-                    <div class="tab-pane fade tab-content" id="output" role="tabpanel">
-                        <span id="outputFileContent" style="color: #8fa9c9;">Output file will appear here.</span>
-                    </div>
-                    <div class="tab-pane fade tab-content" id="log" role="tabpanel">
-                        <span id="logFileContent" style="color: #8fa9c9;">Log file will appear here.</span>
-                    </div>
-                </div>
-                <!-- Custom IAM Tools tab bar -->
-                <div class="tabs mb-3 d-flex flex-row gap-2">
-                    <button class="tab-button" onclick="showTab('summary')">Résumé</button>
-                    <button class="tab-button" onclick="showTab('input')">Input</button>
-                    <button class="tab-button" onclick="showTab('output')">Output</button>
-                    <button class="tab-button" onclick="showTab('log')">Log</button>
-                    <button class="tab-button" onclick="showTab('iamTools')">🧰 IAM Tools</button>
-                </div>
-                <!-- New IAM Tools tab content -->
-                <div class="tab-content" id="iamTools" style="display: none;">
-                    <h3>🧰 IAM Tools</h3>
-                    <button onclick="window.open('/dashboard', '_blank')">📋 IAM Dashboard</button>
-                    <br><br>
-                    <button disabled>📦 Export Results (coming soon)</button>
-                    <br><br>
-                    <button disabled>📁 View System Logs (coming)</button>
-                    <br><br>
-                    <button disabled>⏳ Pending Tasks (coming)</button>
                 </div>
             </div>
         </div>
@@ -872,6 +806,148 @@
             console.error('[IAM Error Details]', details);
         }
     }
+    
+    // --- Custom Tab Management (replaces problematic Bootstrap tabs) ---
+    function showResultTab(tabName) {
+        // Hide all tab panels
+        document.querySelectorAll('.tab-panel').forEach(panel => {
+            panel.classList.add('d-none');
+            panel.classList.remove('active');
+        });
+        
+        // Remove active class from all tab buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // Show selected tab panel
+        const targetPanel = document.getElementById(`tab-${tabName}`);
+        if (targetPanel) {
+            targetPanel.classList.remove('d-none');
+            targetPanel.classList.add('active');
+        }
+        
+        // Add active class to clicked button
+        event.target.classList.add('active');
+    }
+    
+    // --- IAM Tools Functions ---
+    function predictStability() {
+        const smilesInput = document.getElementById('smilesInput').value.trim();
+        const resultOutput = document.getElementById('result-output');
+        
+        if (!smilesInput) {
+            resultOutput.textContent = 'Please enter a SMILES string first.';
+            return;
+        }
+        
+        resultOutput.textContent = 'Predicting stability...';
+        
+        // Simulate API call
+        setTimeout(() => {
+            resultOutput.textContent = `Stability prediction for "${smilesInput}":\n\nThermal Stability: MODERATE\nKinetic Stability: HIGH\nNote: This is a demo result.`;
+        }, 1000);
+    }
+    
+    function predictVoD() {
+        const smilesInput = document.getElementById('smilesInput').value.trim();
+        const resultOutput = document.getElementById('result-output');
+        
+        if (!smilesInput) {
+            resultOutput.textContent = 'Please enter a SMILES string first.';
+            return;
+        }
+        
+        resultOutput.textContent = 'Predicting velocity of detonation...';
+        
+        // Simulate API call
+        setTimeout(() => {
+            resultOutput.textContent = `VoD prediction for "${smilesInput}":\n\nVelocity of Detonation: 7850 m/s\nDetonation Pressure: 28.5 GPa\nNote: This is a demo result.`;
+        }, 1200);
+    }
+    
+    function generateReport() {
+        const resultOutput = document.getElementById('result-output');
+        resultOutput.textContent = 'Generating comprehensive report...';
+        
+        setTimeout(() => {
+            resultOutput.textContent = `IAM Analysis Report\n==================\n\nMolecule: Current structure\nAnalysis Date: ${new Date().toLocaleDateString()}\n\n1. Structural Analysis: COMPLETE\n2. Stability Assessment: COMPLETE\n3. Performance Metrics: COMPLETE\n\nReport generated successfully.`;
+        }, 1500);
+    }
     </script>
+    
+    <!-- Custom CSS for tabs and layout fixes -->
+    <style>
+    /* Fix for white boxes overlapping issue */
+    .custom-tabs {
+        display: flex;
+        gap: 8px;
+        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 16px;
+    }
+    
+    .tab-btn {
+        padding: 8px 16px;
+        border: none;
+        background: #f8f9fa;
+        color: #495057;
+        border-radius: 6px 6px 0 0;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 14px;
+    }
+    
+    .tab-btn:hover {
+        background: #e9ecef;
+        color: #212529;
+    }
+    
+    .tab-btn.active {
+        background: #007bff;
+        color: white;
+        border-bottom: 2px solid #007bff;
+    }
+    
+    .tab-contents {
+        min-height: 200px;
+    }
+    
+    .tab-panel {
+        width: 100%;
+    }
+    
+    .tab-panel.active {
+        display: block !important;
+    }
+    
+    /* Ensure no z-index conflicts */
+    .results-section {
+        position: relative;
+        z-index: 1;
+    }
+    
+    #loadingOverlay {
+        z-index: 100;
+    }
+    
+    /* Fix viewer container to prevent overflow */
+    #viewer {
+        width: 100%;
+        height: 400px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        background: white;
+    }
+    
+    /* Prevent white boxes from hiding content */
+    .panel-right {
+        overflow: visible;
+    }
+    
+    /* Make sure toast notifications don't interfere */
+    .toast {
+        z-index: 1060 !important;
+    }
+    </style>
 </body>
 </html>

@@ -5,14 +5,30 @@ import subprocess
 import tempfile
 import json
 import traceback
+import sys
+import importlib
+from datetime import datetime
 
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit.Chem import rdDistGeom
 from rdkit.Chem import rdForceFieldHelpers
 
+# Add IAM_Knowledge to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../IAM_Knowledge')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 app = Flask(__name__, template_folder='templates')
 CORS(app)
+
+# Debug: Print sys.path to verify module path
+print("sys.path:", sys.path)
+
+# Debug: List contents of IAM_Knowledge directory
+print("IAM_Knowledge contents:", os.listdir(os.path.abspath(os.path.join(os.path.dirname(__file__), '../IAM_Knowledge'))))
+
+# Debug: Print PYTHONPATH and verify environment configuration
+print("PYTHONPATH:", os.environ.get('PYTHONPATH', 'Not set'))
 
 # --- Global error handler ---
 @app.errorhandler(Exception)
@@ -378,6 +394,125 @@ from flask import render_template
 @app.route('/dashboard')
 def dashboard():
     return render_template('IAM_StatusDashboard.html')
+
+# Ajout des endpoints manquants
+
+@app.route('/compute_symmetry', methods=['POST'])
+def compute_symmetry():
+    try:
+        xyz_file = request.files.get("file")
+        if not xyz_file:
+            return jsonify({"success": False, "error": "No file received"}), 400
+
+        # Logique pour calculer la symétrie
+        symmetry_result = "Symmetry computation logic here"
+        return jsonify({"success": True, "symmetry": symmetry_result})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "details": traceback.format_exc()}), 500
+
+@app.route('/predict_stability', methods=['POST'])
+def predict_stability():
+    data = request.get_json()
+    xyz = data.get('xyz', '')
+    result = predict_stability_logic(xyz)  # Appelle le module IAM_StabilityPredictor
+    return jsonify({'result': result})
+
+@app.route('/predict_vod', methods=['POST'])
+def predict_vod():
+    data = request.get_json()
+    xyz = data.get('xyz', '')
+    result = predict_vod(xyz)  # Appelle le module IAM_VoD_Predictor
+    return jsonify({'result': result})
+
+@app.route('/generate_report', methods=['POST'])
+def generate_report():
+    data = request.get_json()
+    xyz = data.get('xyz', '')
+    stability = predict_stability_logic(xyz)
+    vod = predict_vod(xyz)
+    report = {
+        'stability': stability,
+        'vod': vod
+    }
+    return jsonify({'result': report})
+
+# Agent communication endpoints
+@app.route('/send_agent_command', methods=['POST'])
+def send_agent_command():
+    try:
+        data = request.get_json()
+        command = data.get('command', '')
+        
+        # Simulation d'une réponse d'agent
+        agent_response = {
+            'status': 'executed',
+            'command': command,
+            'response': f"Agent executed: {command}",
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        return jsonify({"success": True, "agent_response": agent_response})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/get_agent_status', methods=['GET'])
+def get_agent_status():
+    return jsonify({
+        "status": "online",
+        "last_activity": datetime.now().isoformat(),
+        "active_jobs": 0
+    })
+
+@app.route('/save_molecule', methods=['POST'])
+def save_molecule():
+    try:
+        data = request.get_json()
+        xyz = data.get('xyz', '')
+        filename = data.get('filename', 'molecule.xyz')
+        
+        # Sauvegarde le fichier dans IAM_Results
+        save_path = os.path.join('IAM_Results', filename)
+        with open(save_path, 'w') as f:
+            f.write(xyz)
+            
+        return jsonify({"success": True, "saved_path": save_path})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/load_molecule', methods=['POST'])
+def load_molecule():
+    try:
+        data = request.get_json()
+        filename = data.get('filename', '')
+        
+        # Charge le fichier depuis IAM_Results ou IAM_Knowledge/Molecules
+        possible_paths = [
+            os.path.join('IAM_Results', filename),
+            os.path.join('IAM_Knowledge', 'Molecules', filename)
+        ]
+        
+        for path in possible_paths:
+            if os.path.exists(path):
+                with open(path, 'r') as f:
+                    xyz = f.read()
+                return jsonify({"success": True, "xyz": xyz, "loaded_from": path})
+        
+        return jsonify({"success": False, "error": "File not found"}), 404
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# Import des modules nécessaires (avec gestion d'erreur)
+try:
+    from IAM_Knowledge.IAM_StabilityPredictor import predict_stability_logic
+except ImportError:
+    def predict_stability_logic(xyz):
+        return {"stability": "Module not available", "method": "placeholder"}
+
+try:
+    from IAM_Knowledge.IAM_VoD_Predictor import predict_vod
+except ImportError:
+    def predict_vod(xyz):
+        return {"vod": "Module not available", "method": "placeholder"}
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

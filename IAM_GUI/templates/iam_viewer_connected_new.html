@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IAM – Integrated Analysis & Modeling Platform</title>
+    
+    <!-- Bootstrap 5 & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 3Dmol.js for molecular visualization -->
+    <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+    
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- God Mode Banner -->
+    <div id="godModeBanner" class="god-mode-banner" style="display: none;">
+        <i class="bi bi-lightning-charge"></i> 
+        <span>IAM GOD MODE ACTIVATED</span>
+        <i class="bi bi-lightning-charge"></i>
+    </div>
+
+    <!-- Main Header -->
+    <header class="header-bar">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1 class="mb-0">
+                        <i class="bi bi-atom"></i> 
+                        IAM – Integrated Analysis & Modeling
+                    </h1>
+                    <small class="text-muted">Molecule Viewer & Quantum Chemistry Engine</small>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div class="btn-group" role="group">
+                        <button id="toggleDarkMode" class="btn btn-outline-light btn-sm">
+                            <i class="bi bi-moon"></i> Dark Mode
+                        </button>
+                        <button id="toggleGodMode" class="btn btn-outline-warning btn-sm">
+                            <i class="bi bi-lightning-charge"></i> God Mode
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Module Navigation Tabs -->
+    <nav class="module-nav">
+        <div class="container-fluid">
+            <ul class="nav nav-tabs nav-fill" id="moduleNavTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="computational-tab" data-bs-toggle="tab" data-bs-target="#computational" type="button" role="tab">
+                        <i class="bi bi-calculator"></i> Computational Chemistry
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="prediction-tab" data-bs-toggle="tab" data-bs-target="#prediction" type="button" role="tab">
+                        <i class="bi bi-graph-up"></i> Performance Prediction
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="results-tab" data-bs-toggle="tab" data-bs-target="#results" type="button" role="tab">
+                        <i class="bi bi-bar-chart"></i> Results Analysis
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="stoichiometry-tab" data-bs-toggle="tab" data-bs-target="#stoichiometry" type="button" role="tab">
+                        <i class="bi bi-pie-chart"></i> Stoichiometry Calculator
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="agent-tab" data-bs-toggle="tab" data-bs-target="#agent" type="button" role="tab">
+                        <i class="bi bi-robot"></i> Autonomous Agent
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <div class="tab-content" id="moduleTabContent">
+        
+        <!-- Computational Chemistry Module -->
+        <div class="tab-pane fade show active" id="computational" role="tabpanel">
+            <div class="container-fluid py-4">
+                <div class="row">
+                    
+                    <!-- Left Panel: Input & Controls -->
+                    <div class="col-lg-4">
+                        <div class="panel-left">
+                            
+                            <!-- Molecule Input Section -->
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h5><i class="bi bi-upload"></i> Molecule Input</h5>
+                                </div>
+                                <div class="card-body">
+                                    
+                                    <!-- Input Method Tabs -->
+                                    <ul class="nav nav-pills nav-fill mb-3" id="inputTabs">
+                                        <li class="nav-item">
+                                            <button class="nav-link active" id="smiles-tab" data-bs-toggle="pill" data-bs-target="#smiles-panel">
+                                                SMILES
+                                            </button>
+                                        </li>
+                                        <li class="nav-item">
+                                            <button class="nav-link" id="file-tab" data-bs-toggle="pill" data-bs-target="#file-panel">
+                                                File Upload
+                                            </button>
+                                        </li>
+                                        <li class="nav-item">
+                                            <button class="nav-link" id="sketcher-tab" data-bs-toggle="pill" data-bs-target="#sketcher-panel">
+                                                Sketcher
+                                            </button>
+                                        </li>
+                                    </ul>
+
+                                    <!-- Input Content -->
+                                    <div class="tab-content" id="inputTabContent">
+                                        
+                                        <!-- SMILES Input -->
+                                        <div class="tab-pane fade show active" id="smiles-panel">
+                                            <div class="mb-3">
+                                                <label for="smilesInput" class="form-label">SMILES String</label>
+                                                <input type="text" class="form-control" id="smilesInput" 
+                                                       placeholder="C1=CC=CC=C1" value="">
+                                                <div class="form-text">Enter a SMILES string to generate 3D structure</div>
+                                            </div>
+                                            <button id="loadFromSmiles" class="btn btn-primary w-100">
+                                                <i class="bi bi-arrow-right"></i> Generate 3D Structure
+                                            </button>
+                                        </div>
+
+                                        <!-- File Upload -->
+                                        <div class="tab-pane fade" id="file-panel">
+                                            <div class="mb-3">
+                                                <label for="fileInput" class="form-label">Upload Structure File</label>
+                                                <input type="file" class="form-control" id="fileInput" 
+                                                       accept=".xyz,.mol,.sdf,.pdb">
+                                                <div class="form-text">Supported: XYZ, MOL, SDF, PDB</div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="pasteInput" class="form-label">Or Paste Content</label>
+                                                <textarea class="form-control" id="pasteInput" rows="6" 
+                                                          placeholder="Paste XYZ coordinates or MOL file content here..."></textarea>
+                                            </div>
+                                            <button id="loadFromFile" class="btn btn-primary w-100">
+                                                <i class="bi bi-upload"></i> Load Structure
+                                            </button>
+                                        </div>
+
+                                        <!-- Ketcher Sketcher -->
+                                        <div class="tab-pane fade" id="sketcher-panel">
+                                            <div class="text-center mb-3">
+                                                <iframe id="ketcherFrame" 
+                                                        src="{{ url_for('static', filename='ketcher/index.html') }}" 
+                                                        style="width: 100%; height: 400px; border: 1px solid #ddd; border-radius: 8px;">
+                                                </iframe>
+                                            </div>
+                                            <button id="loadFromSketcher" class="btn btn-primary w-100">
+                                                <i class="bi bi-download"></i> Import from Sketcher
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Calculation Parameters -->
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h5><i class="bi bi-gear"></i> Calculation Parameters</h5>
+                                </div>
+                                <div class="card-body">
+                                    
+                                    <!-- Basic Parameters -->
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6">
+                                            <label class="form-label">Method</label>
+                                            <select id="method" class="form-select">
+                                                <option value="xtb">XTB (GFN2-xTB)</option>
+                                                <option value="psi4" disabled>Psi4 (Coming Soon)</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label">Calculation Type</label>
+                                            <select id="calcType" class="form-select">
+                                                <option value="singlepoint">Single Point</option>
+                                                <option value="optimization">Geometry Optimization</option>
+                                                <option value="frequencies">Frequencies</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label">Charge</label>
+                                            <input id="charge" class="form-control" type="number" value="0" min="-10" max="10">
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label">Multiplicity</label>
+                                            <input id="multiplicity" class="form-control" type="number" value="1" min="1" max="9">
+                                        </div>
+                                    </div>
+
+                                    <!-- Advanced Options Toggle -->
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="showAdvanced">
+                                        <label class="form-check-label" for="showAdvanced">
+                                            Advanced Options
+                                        </label>
+                                    </div>
+
+                                    <!-- Advanced Parameters (Hidden by default) -->
+                                    <div id="advancedOptions" style="display: none;">
+                                        <hr>
+                                        <div class="row g-2 mb-3">
+                                            <div class="col-12">
+                                                <label class="form-label">Additional Flags</label>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="uhfFlag">
+                                                    <label class="form-check-label" for="uhfFlag">Unrestricted (UHF)</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="solventFlag">
+                                                    <label class="form-check-label" for="solventFlag">Implicit Solvent (GBSA)</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-12" id="solventOptions" style="display: none;">
+                                                <select id="solvent" class="form-select">
+                                                    <option value="water">Water</option>
+                                                    <option value="methanol">Methanol</option>
+                                                    <option value="acetone">Acetone</option>
+                                                    <option value="dmso">DMSO</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Calculation Control Buttons -->
+                                    <div class="d-grid gap-2">
+                                        <button id="runCalculation" class="btn btn-success btn-lg">
+                                            <i class="bi bi-play-circle"></i> Run Calculation
+                                        </button>
+                                        <div class="btn-group" role="group">
+                                            <button id="resetParameters" class="btn btn-outline-secondary">
+                                                <i class="bi bi-arrow-clockwise"></i> Reset
+                                            </button>
+                                            <button id="saveParameters" class="btn btn-outline-info">
+                                                <i class="bi bi-bookmark"></i> Save Settings
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Structure Manipulation Tools -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5><i class="bi bi-tools"></i> Structure Tools</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <button id="resymmetrize" class="btn btn-outline-primary btn-sm w-100">
+                                                <i class="bi bi-symmetry-vertical"></i> Resymmetrize
+                                            </button>
+                                        </div>
+                                        <div class="col-6">
+                                            <button id="optimizeStructure" class="btn btn-outline-success btn-sm w-100">
+                                                <i class="bi bi-arrow-up-right"></i> Optimize 3D
+                                            </button>
+                                        </div>
+                                        <div class="col-6">
+                                            <button id="deleteHydrogens" class="btn btn-outline-warning btn-sm w-100">
+                                                <i class="bi bi-trash"></i> Remove H
+                                            </button>
+                                        </div>
+                                        <div class="col-6">
+                                            <button id="addHydrogens" class="btn btn-outline-info btn-sm w-100">
+                                                <i class="bi bi-plus-circle"></i> Add H
+                                            </button>
+                                        </div>
+                                        <div class="col-12">
+                                            <button id="drawPointGroup" class="btn btn-outline-secondary btn-sm w-100">
+                                                <i class="bi bi-diagram-3"></i> Draw Point Group Elements
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Coordinate Editing Options -->
+                                    <hr>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="manualCoordinates">
+                                        <label class="form-check-label" for="manualCoordinates">
+                                            Manually alter coordinates
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="manualMasses">
+                                        <label class="form-check-label" for="manualMasses">
+                                            Manually alter atomic masses
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Center Panel: 3D Viewer -->
+                    <div class="col-lg-4">
+                        <div class="panel-center">
+                            
+                            <!-- 3D Molecular Viewer -->
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5><i class="bi bi-eye"></i> 3D Viewer</h5>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button id="resetView" class="btn btn-outline-secondary" title="Reset View">
+                                            <i class="bi bi-arrow-counterclockwise"></i>
+                                        </button>
+                                        <button id="centerView" class="btn btn-outline-secondary" title="Center">
+                                            <i class="bi bi-bullseye"></i>
+                                        </button>
+                                        <button id="toggleRotation" class="btn btn-outline-secondary" title="Toggle Rotation">
+                                            <i class="bi bi-arrow-repeat"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div id="viewer" class="molecular-viewer"></div>
+                                </div>
+                                <div class="card-footer">
+                                    <div class="btn-group w-100" role="group">
+                                        <button id="styleBallStick" class="btn btn-outline-primary btn-sm">Ball & Stick</button>
+                                        <button id="styleStick" class="btn btn-outline-primary btn-sm active">Stick</button>
+                                        <button id="styleSphere" class="btn btn-outline-primary btn-sm">Sphere</button>
+                                        <button id="styleWireframe" class="btn btn-outline-primary btn-sm">Wireframe</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Coordinate Display/Editor -->
+                            <div class="card mt-3" id="coordinateEditor" style="display: none;">
+                                <div class="card-header">
+                                    <h6><i class="bi bi-table"></i> Coordinate Editor</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive" style="max-height: 300px;">
+                                        <table class="table table-sm table-striped" id="coordinateTable">
+                                            <thead>
+                                                <tr>
+                                                    <th>Atom</th>
+                                                    <th>X</th>
+                                                    <th>Y</th>
+                                                    <th>Z</th>
+                                                    <th id="massColumn" style="display: none;">Mass</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="coordinateTableBody">
+                                                <!-- Dynamically populated -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="mt-2">
+                                        <button id="updateCoordinates" class="btn btn-primary btn-sm">
+                                            <i class="bi bi-check-circle"></i> Update Structure
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Panel: Results & Output -->
+                    <div class="col-lg-4">
+                        <div class="panel-right">
+                            
+                            <!-- Results Tabs -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <ul class="nav nav-tabs card-header-tabs" id="resultTabs">
+                                        <li class="nav-item">
+                                            <button class="nav-link active" id="summary-result-tab" data-bs-toggle="tab" data-bs-target="#summary-result">
+                                                Summary
+                                            </button>
+                                        </li>
+                                        <li class="nav-item">
+                                            <button class="nav-link" id="output-result-tab" data-bs-toggle="tab" data-bs-target="#output-result">
+                                                Output
+                                            </button>
+                                        </li>
+                                        <li class="nav-item">
+                                            <button class="nav-link" id="log-result-tab" data-bs-toggle="tab" data-bs-target="#log-result">
+                                                Log
+                                            </button>
+                                        </li>
+                                        <li class="nav-item">
+                                            <button class="nav-link" id="debug-result-tab" data-bs-toggle="tab" data-bs-target="#debug-result">
+                                                Debug
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="card-body">
+                                    <div class="tab-content" id="resultTabContent">
+                                        
+                                        <!-- Summary Tab -->
+                                        <div class="tab-pane fade show active" id="summary-result">
+                                            <div id="calculationStatus" class="alert alert-info">
+                                                <i class="bi bi-info-circle"></i> Ready for calculation
+                                            </div>
+                                            
+                                            <div id="resultsContainer" style="display: none;">
+                                                <!-- Energy Results -->
+                                                <div class="result-section mb-3">
+                                                    <h6><i class="bi bi-lightning"></i> Energy</h6>
+                                                    <div class="row g-2">
+                                                        <div class="col-12">
+                                                            <div class="result-item">
+                                                                <span class="result-label">Total Energy:</span>
+                                                                <span id="totalEnergy" class="result-value">--</span>
+                                                                <span class="result-unit">Hartree</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Electronic Properties -->
+                                                <div class="result-section mb-3">
+                                                    <h6><i class="bi bi-diagram-2"></i> Electronic Properties</h6>
+                                                    <div class="row g-2">
+                                                        <div class="col-6">
+                                                            <div class="result-item">
+                                                                <span class="result-label">HOMO:</span>
+                                                                <span id="homoEnergy" class="result-value">--</span>
+                                                                <span class="result-unit">eV</span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <div class="result-item">
+                                                                <span class="result-label">LUMO:</span>
+                                                                <span id="lumoEnergy" class="result-value">--</span>
+                                                                <span class="result-unit">eV</span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-12">
+                                                            <div class="result-item">
+                                                                <span class="result-label">HOMO-LUMO Gap:</span>
+                                                                <span id="homoLumoGap" class="result-value">--</span>
+                                                                <span class="result-unit">eV</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Molecular Properties -->
+                                                <div class="result-section mb-3">
+                                                    <h6><i class="bi bi-arrows-move"></i> Molecular Properties</h6>
+                                                    <div class="row g-2">
+                                                        <div class="col-12">
+                                                            <div class="result-item">
+                                                                <span class="result-label">Dipole Moment:</span>
+                                                                <span id="dipoleMoment" class="result-value">--</span>
+                                                                <span class="result-unit">Debye</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Export Options -->
+                                                <div class="result-section">
+                                                    <h6><i class="bi bi-download"></i> Export Results</h6>
+                                                    <div class="btn-group w-100" role="group">
+                                                        <button id="exportXYZ" class="btn btn-outline-primary btn-sm">
+                                                            <i class="bi bi-file-earmark-code"></i> XYZ
+                                                        </button>
+                                                        <button id="exportJSON" class="btn btn-outline-primary btn-sm">
+                                                            <i class="bi bi-file-earmark-text"></i> JSON
+                                                        </button>
+                                                        <button id="exportAll" class="btn btn-outline-primary btn-sm">
+                                                            <i class="bi bi-file-earmark-zip"></i> All Files
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Output Tab -->
+                                        <div class="tab-pane fade" id="output-result">
+                                            <div class="output-container">
+                                                <pre id="calculationOutput" class="output-text">No calculation output yet...</pre>
+                                            </div>
+                                        </div>
+
+                                        <!-- Log Tab -->
+                                        <div class="tab-pane fade" id="log-result">
+                                            <div class="log-container">
+                                                <pre id="calculationLog" class="log-text">Ready to start calculation...</pre>
+                                            </div>
+                                        </div>
+
+                                        <!-- Debug Tab -->
+                                        <div class="tab-pane fade" id="debug-result">
+                                            <div class="debug-container">
+                                                <h6><i class="bi bi-bug"></i> Debug Information</h6>
+                                                
+                                                <div class="debug-section mb-3">
+                                                    <strong>XTB Status:</strong>
+                                                    <div id="xtbStatus" class="debug-info">
+                                                        <span class="badge bg-secondary">Not Started</span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="debug-section mb-3">
+                                                    <strong>Generated Files:</strong>
+                                                    <div id="generatedFiles" class="debug-info">
+                                                        <ul id="filesList" class="list-unstyled mb-0">
+                                                            <li><small class="text-muted">No files generated yet</small></li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+
+                                                <div class="debug-section mb-3">
+                                                    <strong>Last Error:</strong>
+                                                    <div id="lastError" class="debug-info">
+                                                        <small class="text-muted">No errors</small>
+                                                    </div>
+                                                </div>
+
+                                                <div class="debug-section">
+                                                    <button id="exportTempFiles" class="btn btn-outline-warning btn-sm">
+                                                        <i class="bi bi-folder"></i> Export Temp Files
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- File Management -->
+                            <div class="card mt-3">
+                                <div class="card-header">
+                                    <h6><i class="bi bi-files"></i> File Management</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="btn-group w-100 mb-2" role="group">
+                                        <button id="saveToFile" class="btn btn-outline-success btn-sm">
+                                            <i class="bi bi-save"></i> Save Structure
+                                        </button>
+                                        <button id="copyToClipboard" class="btn btn-outline-info btn-sm">
+                                            <i class="bi bi-clipboard"></i> Copy
+                                        </button>
+                                    </div>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" id="filename" class="form-control" placeholder="Enter filename..." value="molecule">
+                                        <select id="fileFormat" class="form-select">
+                                            <option value="xyz">.xyz</option>
+                                            <option value="mol">.mol</option>
+                                            <option value="sdf">.sdf</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Prediction Module -->
+        <div class="tab-pane fade" id="prediction" role="tabpanel">
+            <div class="container-fluid py-4">
+                <div class="row justify-content-center">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4><i class="bi bi-graph-up"></i> Explosives Performance Prediction</h4>
+                            </div>
+                            <div class="card-body text-center">
+                                <div class="mb-4">
+                                    <i class="bi bi-tools" style="font-size: 3rem; color: #6c757d;"></i>
+                                    <h5 class="mt-3">Coming Soon</h5>
+                                    <p class="text-muted">Advanced performance prediction algorithms are being developed.</p>
+                                </div>
+                                <div class="list-group list-group-flush">
+                                    <div class="list-group-item">
+                                        <i class="bi bi-check-circle text-primary"></i> 
+                                        Velocity of Detonation (VoD) Prediction
+                                    </div>
+                                    <div class="list-group-item">
+                                        <i class="bi bi-check-circle text-primary"></i> 
+                                        Pressure and Density Analysis
+                                    </div>
+                                    <div class="list-group-item">
+                                        <i class="bi bi-check-circle text-primary"></i> 
+                                        Sensitivity Estimation
+                                    </div>
+                                    <div class="list-group-item">
+                                        <i class="bi bi-check-circle text-primary"></i> 
+                                        Thermodynamic Properties
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Analysis Module -->
+        <div class="tab-pane fade" id="results" role="tabpanel">
+            <div class="container-fluid py-4">
+                <div class="row justify-content-center">
+                    <div class="col-lg-10">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4><i class="bi bi-bar-chart"></i> Results Database & Analysis</h4>
+                            </div>
+                            <div class="card-body text-center">
+                                <div class="mb-4">
+                                    <i class="bi bi-database" style="font-size: 3rem; color: #6c757d;"></i>
+                                    <h5 class="mt-3">Results Archive</h5>
+                                    <p class="text-muted">Browse and analyze your calculation history.</p>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="card border-primary">
+                                            <div class="card-body">
+                                                <i class="bi bi-folder text-primary" style="font-size: 2rem;"></i>
+                                                <h6 class="mt-2">Recent Calculations</h6>
+                                                <p class="text-muted small">Access your latest results</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card border-success">
+                                            <div class="card-body">
+                                                <i class="bi bi-graph-up text-success" style="font-size: 2rem;"></i>
+                                                <h6 class="mt-2">Trend Analysis</h6>
+                                                <p class="text-muted small">Compare molecular properties</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card border-info">
+                                            <div class="card-body">
+                                                <i class="bi bi-download text-info" style="font-size: 2rem;"></i>
+                                                <h6 class="mt-2">Export Data</h6>
+                                                <p class="text-muted small">Download for external analysis</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stoichiometry Calculator Module -->
+        <div class="tab-pane fade" id="stoichiometry" role="tabpanel">
+            <div class="container-fluid py-4">
+                <div class="row justify-content-center">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4><i class="bi bi-pie-chart"></i> Advanced Stoichiometry Calculator</h4>
+                            </div>
+                            <div class="card-body text-center">
+                                <div class="mb-4">
+                                    <i class="bi bi-calculator" style="font-size: 3rem; color: #6c757d;"></i>
+                                    <h5 class="mt-3">Stoichiometric Analysis Tools</h5>
+                                    <p class="text-muted">Advanced calculations for explosive compositions and reactions.</p>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card border-warning">
+                                            <div class="card-body">
+                                                <i class="bi bi-gear text-warning" style="font-size: 2rem;"></i>
+                                                <h6 class="mt-2">Oxygen Balance</h6>
+                                                <p class="text-muted small">Calculate oxygen balance for explosives</p>
+                                                <button class="btn btn-outline-warning btn-sm">Calculate</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card border-danger">
+                                            <div class="card-body">
+                                                <i class="bi bi-fire text-danger" style="font-size: 2rem;"></i>
+                                                <h6 class="mt-2">Heat of Formation</h6>
+                                                <p class="text-muted small">Thermodynamic calculations</p>
+                                                <button class="btn btn-outline-danger btn-sm">Calculate</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Autonomous Agent Module -->
+        <div class="tab-pane fade" id="agent" role="tabpanel">
+            <div class="container-fluid py-4">
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4><i class="bi bi-robot"></i> IAM Autonomous Agent</h4>
+                                <div class="agent-status">
+                                    <span id="agentStatus" class="badge bg-secondary">Standby</span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                
+                                <!-- Agent Control Panel -->
+                                <div class="row g-3 mb-4">
+                                    <div class="col-md-6">
+                                        <button id="generateModule" class="btn btn-success w-100">
+                                            <i class="bi bi-plus-circle"></i> Generate Module
+                                        </button>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <button id="listModules" class="btn btn-info w-100">
+                                            <i class="bi bi-list-ul"></i> List Modules
+                                        </button>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <button id="runBackup" class="btn btn-warning w-100">
+                                            <i class="bi bi-shield-check"></i> Backup
+                                        </button>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <button id="runShell" class="btn btn-secondary w-100">
+                                            <i class="bi bi-terminal"></i> ls -la
+                                        </button>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <button id="testScript" class="btn btn-primary w-100">
+                                            <i class="bi bi-play-circle"></i> Test Script
+                                        </button>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <button id="logFeedback" class="btn btn-outline-dark w-100">
+                                            <i class="bi bi-chat-square-text"></i> Feedback
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Agent Terminal -->
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-terminal"></i> Agent Terminal</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="agentTerminal" class="terminal">
+                                            <div class="terminal-line">
+                                                <span class="terminal-prompt">IAM-Agent $</span>
+                                                <span class="terminal-text">System ready. Awaiting commands...</span>
+                                            </div>
+                                        </div>
+                                        <div class="input-group mt-2">
+                                            <span class="input-group-text">$</span>
+                                            <input type="text" id="agentCommand" class="form-control" placeholder="Enter command...">
+                                            <button id="executeCommand" class="btn btn-outline-primary">Execute</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6><i class="bi bi-activity"></i> Agent Status</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="status-section mb-3">
+                                    <strong>Connection:</strong>
+                                    <span id="connectionStatus" class="badge bg-success">Connected</span>
+                                </div>
+                                <div class="status-section mb-3">
+                                    <strong>Last Activity:</strong>
+                                    <div id="lastActivity" class="text-muted small">--</div>
+                                </div>
+                                <div class="status-section mb-3">
+                                    <strong>Active Tasks:</strong>
+                                    <div id="activeTasks" class="text-muted small">0</div>
+                                </div>
+                                <div class="status-section">
+                                    <strong>Endpoint:</strong>
+                                    <div id="agentEndpoint" class="text-muted small">http://127.0.0.1:5001</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mt-3">
+                            <div class="card-header">
+                                <h6><i class="bi bi-journal-text"></i> Recent Logs</h6>
+                            </div>
+                            <div class="card-body">
+                                <div id="recentLogs" class="log-container">
+                                    <div class="log-entry">
+                                        <small class="text-muted">System initialized</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-content">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="mt-3">
+                <h5>Processing...</h5>
+                <p id="loadingMessage" class="text-muted">Please wait while we process your request</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom JavaScript -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

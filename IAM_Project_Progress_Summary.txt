@@ -1,0 +1,152 @@
+# IAM Project Progress Summary
+
+## Project Arborescence
+```
+IAM/
+├── charges
+├── chem-env.yaml
+├── iam_setup.sh
+├── iam_update_db.py
+├── iam.sh
+├── main.py
+├── miniconda.sh
+├── nitromethane.xyz
+├── README.md
+├── requirements.txt
+├── reset_iam_env.sh
+├── restart_jupyter.sh
+├── setup_iam_structure.sh
+├── setup_pybel.sh
+├── setup.sh
+├── start_iam_notebook.sh
+├── start.sh
+├── test_methane_xtb.py
+├── wbo
+├── xtb_wrapper.py
+├── xtbopt.xyz
+├── xtbout.json
+├── xtbrestart
+├── xtbtopo.mol
+├── core/
+│   ├── runner.py
+├── data/
+│   ├── results/
+│       ├── test_20250613_112236/
+│           ├── charges
+│           ├── wbo
+│           ├── xtbopt.xyz
+│           ├── xtbrestart
+│           ├── xtbtopo.mol
+├── IAM_GUI/
+│   ├── backend.py
+│   ├── templates/
+│   │   ├── iam_viewer_connected.html
+│   ├── static/
+│       ├── script.js
+│       ├── style.css
+│       ├── ketcher/
+│           ├── apple-touch-icon.png
+│           ├── asset-manifest.json
+│           ├── duo.html
+│           ├── favicon-16x16.png
+│           ├── favicon-32x32.png
+│           ├── favicon.ico
+│           ├── iframe.html
+│           ├── index.html
+│           ├── logo.svg
+│           ├── manifest.json
+│           ├── popup.html
+│           ├── robots.txt
+│           ├── serve.json
+│           ├── static/
+│               ├── ...
+│   ├── IAM_StatusDashboard.html
+├── IAM_Knowledge/
+│   ├── Molecules/
+│       ├── methane_test.xyz
+├── IAM_Molecule_Engine/
+│   ├── iam_molecule_engine.py
+│   ├── xtb_wrapper.py
+│   ├── Notebooks/
+│       ├── homo_lumo_workflow(old).ipynb
+│       ├── IAM_xtb_pipeline_test.ipynb
+├── IAM_Notebooks/
+│   ├── homo_lumo_workflow(old).ipynb
+│   ├── IAM_xtb_pipeline_test.ipynb
+├── IAM_Results/
+│   ├── methane_test.xyz
+├── IAM_Utils/
+├── IAM_VoD_Predictor/
+├── tools/
+│   ├── xtb/
+│       ├── charges
+│       ├── nitromethane.xyz
+│       ├── wbo
+│       ├── xtb.py
+│       ├── xtbopt.xyz
+│       ├── xtbrestart
+│       ├── xtbtopo.mol
+│       ├── xtb_wrapper_test/
+│           ├── charges
+│           ├── test.xyz
+│           ├── wbo
+│           ├── xtb_wrapper.py
+│           ├── xtbopt.xyz
+│           ├── xtbrestart
+│           ├── xtbtopo.mol
+├── webui/
+│   ├── app.py
+│   ├── templates/
+│       ├── index.html
+├── xtb_output/
+│   ├── methane_xtb.log/
+```
+
+## File Descriptions
+
+### Main Files
+- **main.py**: Entry point for the IAM project.
+- **README.md**: Documentation and overview of the project.
+- **requirements.txt**: Lists Python dependencies for the project.
+
+### Scripts
+- **iam_setup.sh**: Script for setting up the IAM environment.
+- **reset_iam_env.sh**: Resets the IAM environment.
+- **restart_jupyter.sh**: Restarts Jupyter Notebook.
+- **setup_iam_structure.sh**: Sets up the IAM project structure.
+- **setup_pybel.sh**: Installs Pybel dependencies.
+- **start_iam_notebook.sh**: Starts the IAM notebook.
+- **start.sh**: General startup script.
+
+### IAM_GUI
+- **backend.py**: Flask backend for the IAM Molecule Viewer.
+- **templates/iam_viewer_connected.html**: Main HTML template for the IAM Molecule Viewer.
+- **static/script.js**: JavaScript logic for frontend interactions.
+- **static/style.css**: Styling for the IAM Molecule Viewer.
+
+### IAM_Knowledge
+- **Molecules/methane_test.xyz**: Example molecule file.
+
+### IAM_Molecule_Engine
+- **iam_molecule_engine.py**: Core logic for molecule processing.
+- **xtb_wrapper.py**: Wrapper for XTB calculations.
+
+### Notebooks
+- **IAM_Notebooks/IAM_xtb_pipeline_test.ipynb**: Jupyter notebook for testing the XTB pipeline.
+
+### Tools
+- **xtb/xtb.py**: XTB tool script.
+- **xtb/xtb_wrapper_test/xtb_wrapper.py**: Test wrapper for XTB.
+
+### WebUI
+- **webui/app.py**: Flask application for the web interface.
+- **webui/templates/index.html**: HTML template for the web interface.
+
+## Progress Summary
+- **HTML Cleanup**: Removed duplicate sections and streamlined the interface in `iam_viewer_connected.html`.
+- **Button Functionality**: Added event listeners and logic in `script.js`.
+- **IAM Tools Panel**: Added a hidden panel for future tools.
+- **Backend Debugging**: Verified and debugged imports in `backend.py`.
+- **Environment Setup**: Ensured proper setup scripts for the IAM environment.
+
+This summary encapsulates the current state and progress of the IAM project.
