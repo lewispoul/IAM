@@ -1,1 +1,66 @@
 Ajoute une route Flask pour afficher le dashboard, et un bouton HTML dans l’interface.
+🧠 COPILOT – RÉINTEGRATION TOTALE DU PROJET IAM (JUILLET 2025)
+
+Projet : IAM (Intelligent Assistant for Molecules)
+Objectif : Recréer un projet propre avec :
+- une interface web fonctionnelle (calcul, visualisation 3D, outils IAM),
+- tous les modules d’analyse (XTB, stabilité, VoD, symétrie, etc.),
+- un code maintenable, propre, structuré (avec backup des anciens fichiers).
+
+───────────────────────────────────────────────
+1. ✅ FRONTEND (iam_viewer_connected.html + script.js)
+───────────────────────────────────────────────
+- Corriger tous les boutons existants (ne pas en créer de nouveaux !)
+  - Optimize Structure → appelle /run_xtb
+  - Draw Point Group Elements → appelle /compute_symmetry
+  - IAM Tools → ouvre une vraie modale avec options :
+      • Predict Stability → /predict_stability
+      • Predict VoD       → /predict_vod
+      • Generate Report   → combine les deux + export JSON
+- Ajouter :
+  - Spinner de chargement
+  - Résultats dynamiques (Résumé, Output, Log)
+  - Icônes 📉 ⚖️ 📄 ❔
+  - Support responsive + dark mode
+
+───────────────────────────────────────────────
+2. ✅ BACKEND (backend.py)
+───────────────────────────────────────────────
+- Assure les endpoints Flask suivants :
+  - /run_xtb → optimise structure + retourne énergie, HOMO–LUMO, dipôle
+  - /compute_symmetry → analyse de symétrie via RDKit
+  - /predict_stability → appelle IAM_StabilityPredictor
+  - /predict_vod → appelle IAM_VoD_Predictor
+  - /generate_report → combine les deux + écrit .json
+- Sauvegarder tous les résultats dans IAM_Knowledge/Results/<module>/
+
+───────────────────────────────────────────────
+3. ✅ MODULES PYTHON requis
+───────────────────────────────────────────────
+- xtb_wrapper.py : fonctionne déjà
+- IAM_StabilityPredictor.py : analyse complète de stabilité hydrolytique
+- IAM_VoD_Predictor.py : prédiction VoD via ML et Kamlet–Jacobs
+- IAM_ThermoPredictor.py : Cp, S, H_f (JANAF ou ML) (si manquant → créer)
+- IAM_ToxicityPredictor.py : SMARTS de toxicité + score (si manquant)
+- IAM_PropertiesPredictor.py : T_dec, solubilité, point de fusion
+- IAM_ReactivityModule.py : indices Fukui, dureté, zones réactives
+
+───────────────────────────────────────────────
+4. ✅ ORGANISATION DES FICHIERS (nettoyage)
+───────────────────────────────────────────────
+- Tous les scripts Python → dans /scripts/ ou /core/
+- Tous les résultats (JSON, CSV) → /IAM_Knowledge/Results/<module>/
+- Tous les fichiers inutiles (anciens logs, .xyz temporaires) → /trash/
+- Créer un script `cleanup.py` pour déplacer automatiquement les fichiers inutiles
+- Restaurer .git (si supprimé), initialiser dépôt local
+- Ajouter .gitignore pour ignorer /trash/, __pycache__, .zip, .csv, etc.
+
+───────────────────────────────────────────────
+📢 Rappels importants
+
+- Ne jamais recréer les modules existants
+- Ne pas dupliquer les boutons HTML (réutilise les existants !)
+- Ajoute des commentaires clairs dans chaque fichier modifié
+- Teste chaque fonction après l’avoir codée
+- Tous les chemins doivent être relatifs et portables
+- Tous les fichiers doivent être classés ou ignorés proprement
