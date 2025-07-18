@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Molecular Orbitals - IAM</title>
+    
+    <!-- 3Dmol.js for molecular visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/3dmol@latest/build/3Dmol-min.js"></script>
+    
+    <!-- Chart.js for energy diagrams -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Socket.IO for real-time updates -->
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5em;
+            font-weight: 300;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 1.1em;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 300px 1fr 350px;
+            gap: 20px;
+            height: calc(100vh - 180px);
+        }
+
+        /* Sidebar - Orbital List */
+        .orbital-sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            overflow-y: auto;
+        }
+
+        .orbital-sidebar h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .calculation-controls {
+            margin-bottom: 30px;
+        }
+
+        .file-upload {
+            margin-bottom: 15px;
+        }
+
+        .file-upload label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .file-upload input[type="file"] {
+            width: 100%;
+            padding: 8px;
+            border: 2px dashed #3498db;
+            border-radius: 8px;
+            background: #ecf0f1;
+        }
+
+        .calculation-params {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .param-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .param-group label {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .param-group select,
+        .param-group input {
+            padding: 5px 8px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            width: 100px;
+        }
+
+        .calculate-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .calculate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+
+        .calculate-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Progress Section */
+        .progress-section {
+            margin-bottom: 30px;
+            display: none;
+        }
+
+        .progress-section.active {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            text-align: center;
+        }
+
+        .progress-log {
+            max-height: 100px;
+            overflow-y: auto;
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8em;
+            margin-top: 10px;
+        }
+
+        /* Orbital List */
+        .orbital-list {
+            display: none;
+        }
+
+        .orbital-list.active {
+            display: block;
+        }
+
+        .orbital-item {
+            background: #f8f9fa;
+            border: 2px solid transparent;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .orbital-item:hover {
+            background: #e3f2fd;
+            border-color: #3498db;
+            transform: translateX(5px);
+        }
+
+        .orbital-item.selected {
+            background: #3498db;
+            color: white;
+            border-color: #2980b9;
+        }
+
+        .orbital-item.homo {
+            border-left: 5px solid #e74c3c;
+        }
+
+        .orbital-item.lumo {
+            border-left: 5px solid #2ecc71;
+        }
+
+        .orbital-number {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+
+        .orbital-energy {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .orbital-occupation {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.1);
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.8em;
+        }
+
+        /* Main Visualization Area */
+        .visualization-area {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .viz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .viz-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .viz-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .viz-controls label {
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+
+        .viz-controls input,
+        .viz-controls select {
+            padding: 5px 8px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+        }
+
+        .molecular-viewer {
+            flex: 1;
+            min-height: 500px;
+            border: 2px solid #ecf0f1;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .orbital-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        .orbital-info h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .orbital-properties {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .property-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 5px;
+            border-left: 3px solid #3498db;
+        }
+
+        .property-label {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .property-value {
+            color: #7f8c8d;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Controls Panel */
+        .controls-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            overflow-y: auto;
+        }
+
+        .controls-panel h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .control-section {
+            margin-bottom: 30px;
+        }
+
+        .control-section h4 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+
+        .range-value {
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+
+        .control-group select,
+        .control-group input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+        }
+
+        .color-picker {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .color-option {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .color-option.selected {
+            border-color: #2c3e50;
+            transform: scale(1.1);
+        }
+
+        .energy-diagram {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            height: 300px;
+        }
+
+        .export-controls {
+            display: grid;
+            gap: 10px;
+        }
+
+        .export-btn {
+            padding: 10px;
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .export-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(231, 76, 60, 0.3);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1400px) {
+            .main-layout {
+                grid-template-columns: 250px 1fr 300px;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto;
+            }
+            
+            .orbital-sidebar {
+                order: 2;
+            }
+            
+            .visualization-area {
+                order: 1;
+            }
+            
+            .controls-panel {
+                order: 3;
+            }
+        }
+
+        /* Loading Animation */
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.running {
+            background: #f39c12;
+            animation: pulse 1.5s ease-in-out infinite alternate;
+        }
+
+        .status-indicator.completed {
+            background: #2ecc71;
+        }
+
+        .status-indicator.error {
+            background: #e74c3c;
+        }
+
+        @keyframes pulse {
+            from { opacity: 1; }
+            to { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Professional Molecular Orbitals</h1>
+            <p>ChemCompute-Quality Quantum Chemistry Visualization</p>
+        </div>
+
+        <div class="main-layout">
+            <!-- Sidebar - Orbital List -->
+            <div class="orbital-sidebar">
+                <h3>Calculation & Orbitals</h3>
+                
+                <!-- Calculation Controls -->
+                <div class="calculation-controls">
+                    <div class="file-upload">
+                        <label for="xyzFile">Molecule Structure (XYZ)</label>
+                        <input type="file" id="xyzFile" accept=".xyz" />
+                    </div>
+                    
+                    <div class="calculation-params">
+                        <div class="param-group">
+                            <label>Method:</label>
+                            <select id="method">
+                                <option value="xtb">xTB</option>
+                                <option value="dft">DFT</option>
+                                <option value="hf">Hartree-Fock</option>
+                            </select>
+                        </div>
+                        
+                        <div class="param-group">
+                            <label>Charge:</label>
+                            <input type="number" id="charge" value="0" min="-5" max="5" />
+                        </div>
+                        
+                        <div class="param-group">
+                            <label>Multiplicity:</label>
+                            <input type="number" id="multiplicity" value="1" min="1" max="5" />
+                        </div>
+                        
+                        <div class="param-group">
+                            <label>Max Orbitals:</label>
+                            <input type="number" id="maxOrbitals" value="20" min="5" max="50" />
+                        </div>
+                    </div>
+                    
+                    <button class="calculate-btn" id="calculateBtn">
+                        Start Calculation
+                    </button>
+                </div>
+
+                <!-- Progress Section -->
+                <div class="progress-section" id="progressSection">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">Initializing...</div>
+                    <div class="progress-log" id="progressLog"></div>
+                </div>
+
+                <!-- Orbital List -->
+                <div class="orbital-list" id="orbitalList">
+                    <!-- Orbitals will be populated here -->
+                </div>
+            </div>
+
+            <!-- Main Visualization Area -->
+            <div class="visualization-area">
+                <div class="viz-header">
+                    <div class="viz-title">Orbital Visualization</div>
+                    <div class="viz-controls">
+                        <label>Isovalue:</label>
+                        <input type="range" id="isovalueSlider" min="0.01" max="0.2" step="0.01" value="0.05" />
+                        <span id="isovalueDisplay">0.05</span>
+                        
+                        <label>Style:</label>
+                        <select id="visualizationStyle">
+                            <option value="isosurface">Isosurface</option>
+                            <option value="density">Density</option>
+                            <option value="both">Both</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="molecular-viewer" id="molecularViewer">
+                    <div style="text-align: center; padding-top: 200px; color: #7f8c8d;">
+                        Upload a molecule and start calculation to view orbitals
+                    </div>
+                </div>
+                
+                <div class="orbital-info" id="orbitalInfo" style="display: none;">
+                    <h4>Orbital Properties</h4>
+                    <div class="orbital-properties" id="orbitalProperties">
+                        <!-- Properties will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls Panel -->
+            <div class="controls-panel">
+                <h3>Visualization Controls</h3>
+                
+                <div class="control-section">
+                    <h4>Energy Diagram</h4>
+                    <div class="energy-diagram">
+                        <canvas id="energyChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="control-section">
+                    <h4>Appearance</h4>
+                    
+                    <div class="control-group">
+                        <label>Orbital Opacity</label>
+                        <input type="range" id="opacitySlider" min="0.1" max="1.0" step="0.1" value="0.8" />
+                        <div class="range-value" id="opacityValue">0.8</div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Molecular Scale</label>
+                        <input type="range" id="scaleSlider" min="0.5" max="3.0" step="0.1" value="1.0" />
+                        <div class="range-value" id="scaleValue">1.0</div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Positive Phase Color</label>
+                        <div class="color-picker" id="positiveColorPicker">
+                            <div class="color-option" style="background: #ff6b6b;" data-color="#ff6b6b"></div>
+                            <div class="color-option selected" style="background: #4ecdc4;" data-color="#4ecdc4"></div>
+                            <div class="color-option" style="background: #45b7d1;" data-color="#45b7d1"></div>
+                            <div class="color-option" style="background: #f9ca24;" data-color="#f9ca24"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Negative Phase Color</label>
+                        <div class="color-picker" id="negativeColorPicker">
+                            <div class="color-option selected" style="background: #ff6b6b;" data-color="#ff6b6b"></div>
+                            <div class="color-option" style="background: #4ecdc4;" data-color="#4ecdc4"></div>
+                            <div class="color-option" style="background: #45b7d1;" data-color="#45b7d1"></div>
+                            <div class="color-option" style="background: #f9ca24;" data-color="#f9ca24"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-section">
+                    <h4>Export Options</h4>
+                    <div class="export-controls">
+                        <button class="export-btn" id="exportImageBtn">Export Image</button>
+                        <button class="export-btn" id="exportDataBtn">Export Data</button>
+                        <button class="export-btn" id="exportCubeBtn">Export Cube Files</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentJobId = null;
+        let calculationResults = null;
+        let selectedOrbital = null;
+        let viewer3d = null;
+        let energyChart = null;
+        let socket = null;
+        
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeViewer();
+            setupEventListeners();
+            setupWebSocket();
+            initializeEnergyChart();
+        });
+        
+        function initializeViewer() {
+            const viewerElement = document.getElementById('molecularViewer');
+            viewer3d = $3Dmol.createViewer(viewerElement, {
+                defaultcolors: $3Dmol.rasmolElementColors
+            });
+            
+            // Set up basic viewer settings
+            viewer3d.setBackgroundColor('#f8f9fa');
+            viewer3d.zoomTo();
+            viewer3d.render();
+        }
+        
+        function setupWebSocket() {
+            // Initialize Socket.IO for real-time updates
+            socket = io();
+            
+            socket.on('calculation_progress', function(data) {
+                updateProgress(data);
+            });
+            
+            socket.on('calculation_complete', function(data) {
+                handleCalculationComplete(data);
+            });
+            
+            socket.on('calculation_error', function(data) {
+                handleCalculationError(data);
+            });
+        }
+        
+        function setupEventListeners() {
+            // File upload
+            document.getElementById('xyzFile').addEventListener('change', handleFileUpload);
+            
+            // Calculate button
+            document.getElementById('calculateBtn').addEventListener('click', startCalculation);
+            
+            // Visualization controls
+            document.getElementById('isovalueSlider').addEventListener('input', updateIsovalue);
+            document.getElementById('visualizationStyle').addEventListener('change', updateVisualizationStyle);
+            document.getElementById('opacitySlider').addEventListener('input', updateOpacity);
+            document.getElementById('scaleSlider').addEventListener('input', updateScale);
+            
+            // Color pickers
+            setupColorPickers();
+            
+            // Export buttons
+            document.getElementById('exportImageBtn').addEventListener('click', exportImage);
+            document.getElementById('exportDataBtn').addEventListener('click', exportData);
+            document.getElementById('exportCubeBtn').addEventListener('click', exportCubeFiles);
+        }
+        
+        function setupColorPickers() {
+            const positiveColorPicker = document.getElementById('positiveColorPicker');
+            const negativeColorPicker = document.getElementById('negativeColorPicker');
+            
+            positiveColorPicker.addEventListener('click', function(e) {
+                if (e.target.classList.contains('color-option')) {
+                    selectColor(positiveColorPicker, e.target);
+                    updateOrbitalColors();
+                }
+            });
+            
+            negativeColorPicker.addEventListener('click', function(e) {
+                if (e.target.classList.contains('color-option')) {
+                    selectColor(negativeColorPicker, e.target);
+                    updateOrbitalColors();
+                }
+            });
+        }
+        
+        function selectColor(picker, colorOption) {
+            picker.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
+            colorOption.classList.add('selected');
+        }
+        
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const xyzContent = e.target.result;
+                    // Store XYZ content for calculation
+                    window.currentXyzContent = xyzContent;
+                    
+                    // Preview molecule structure
+                    previewMolecule(xyzContent);
+                };
+                reader.readAsText(file);
+            }
+        }
+        
+        function previewMolecule(xyzContent) {
+            viewer3d.clear();
+            viewer3d.addModel(xyzContent, 'xyz');
+            viewer3d.setStyle({}, {stick: {radius: 0.2}, sphere: {scale: 0.3}});
+            viewer3d.zoomTo();
+            viewer3d.render();
+        }
+        
+        function startCalculation() {
+            if (!window.currentXyzContent) {
+                alert('Please upload an XYZ file first');
+                return;
+            }
+            
+            const calculateBtn = document.getElementById('calculateBtn');
+            const progressSection = document.getElementById('progressSection');
+            const orbitalList = document.getElementById('orbitalList');
+            
+            // Disable button and show progress
+            calculateBtn.disabled = true;
+            calculateBtn.textContent = 'Calculating...';
+            progressSection.classList.add('active');
+            orbitalList.classList.remove('active');
+            
+            // Get calculation parameters
+            const params = {
+                xyz_content: window.currentXyzContent,
+                method: document.getElementById('method').value,
+                charge: parseInt(document.getElementById('charge').value),
+                multiplicity: parseInt(document.getElementById('multiplicity').value),
+                max_orbitals: parseInt(document.getElementById('maxOrbitals').value)
+            };
+            
+            // Start calculation
+            fetch('/api/professional_orbitals/start_calculation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(params)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    currentJobId = data.job_id;
+                    pollProgress();
+                } else {
+                    handleCalculationError(data);
+                }
+            })
+            .catch(error => {
+                console.error('Error starting calculation:', error);
+                handleCalculationError({error: error.message});
+            });
+        }
+        
+        function pollProgress() {
+            if (!currentJobId) return;
+            
+            fetch(`/api/professional_orbitals/progress/${currentJobId}`)
+                .then(response => response.json())
+                .then(data => {
+                    updateProgress(data);
+                    
+                    if (data.status === 'completed') {
+                        fetchResults();
+                    } else if (data.status === 'error') {
+                        handleCalculationError(data);
+                    } else {
+                        // Continue polling
+                        setTimeout(pollProgress, 1000);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error polling progress:', error);
+                    setTimeout(pollProgress, 2000); // Retry
+                });
+        }
+        
+        function updateProgress(data) {
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const progressLog = document.getElementById('progressLog');
+            
+            progressFill.style.width = data.progress_percent + '%';
+            progressText.innerHTML = `
+                <span class="status-indicator ${data.status}"></span>
+                ${data.current_step} (${data.progress_percent.toFixed(1)}%)
+            `;
+            
+            // Update log
+            if (data.detailed_log && data.detailed_log.length > 0) {
+                progressLog.innerHTML = data.detailed_log.slice(-5).join('<br>');
+                progressLog.scrollTop = progressLog.scrollHeight;
+            }
+        }
+        
+        function fetchResults() {
+            fetch(`/api/professional_orbitals/results/${currentJobId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        handleCalculationComplete(data);
+                    } else {
+                        handleCalculationError(data);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching results:', error);
+                    handleCalculationError({error: error.message});
+                });
+        }
+        
+        function handleCalculationComplete(data) {
+            calculationResults = data;
+            
+            // Reset UI
+            const calculateBtn = document.getElementById('calculateBtn');
+            const progressSection = document.getElementById('progressSection');
+            const orbitalList = document.getElementById('orbitalList');
+            
+            calculateBtn.disabled = false;
+            calculateBtn.textContent = 'Start Calculation';
+            progressSection.classList.remove('active');
+            orbitalList.classList.add('active');
+            
+            // Populate orbital list
+            populateOrbitalList(data.orbitals);
+            
+            // Update energy chart
+            updateEnergyChart(data.orbitals);
+            
+            // Select HOMO by default
+            const homoIndex = findHOMOIndex(data.orbitals);
+            if (homoIndex !== -1) {
+                selectOrbital(homoIndex);
+            }
+        }
+        
+        function handleCalculationError(data) {
+            const calculateBtn = document.getElementById('calculateBtn');
+            const progressSection = document.getElementById('progressSection');
+            
+            calculateBtn.disabled = false;
+            calculateBtn.textContent = 'Start Calculation';
+            progressSection.classList.remove('active');
+            
+            alert('Calculation failed: ' + (data.error || 'Unknown error'));
+        }
+        
+        function populateOrbitalList(orbitals) {
+            const orbitalList = document.getElementById('orbitalList');
+            orbitalList.innerHTML = '';
+            
+            const homoIndex = findHOMOIndex(orbitals);
+            
+            orbitals.forEach((orbital, index) => {
+                const orbitalItem = document.createElement('div');
+                orbitalItem.className = 'orbital-item';
+                orbitalItem.dataset.orbitalIndex = orbital.orbital_index;
+                
+                // Add HOMO/LUMO classes
+                if (index === homoIndex) {
+                    orbitalItem.classList.add('homo');
+                } else if (index === homoIndex + 1) {
+                    orbitalItem.classList.add('lumo');
+                }
+                
+                orbitalItem.innerHTML = `
+                    <div class="orbital-number">
+                        Orbital ${orbital.orbital_index}
+                        ${index === homoIndex ? ' (HOMO)' : ''}
+                        ${index === homoIndex + 1 ? ' (LUMO)' : ''}
+                    </div>
+                    <div class="orbital-energy">
+                        ${orbital.energy_ev.toFixed(3)} eV
+                    </div>
+                    <div class="orbital-occupation">
+                        ${orbital.occupation.toFixed(1)}
+                    </div>
+                `;
+                
+                orbitalItem.addEventListener('click', () => selectOrbital(orbital.orbital_index));
+                orbitalList.appendChild(orbitalItem);
+            });
+        }
+        
+        function findHOMOIndex(orbitals) {
+            for (let i = 0; i < orbitals.length; i++) {
+                if (orbitals[i].occupation < 1.0) {
+                    return Math.max(0, i - 1);
+                }
+            }
+            return orbitals.length - 1;
+        }
+        
+        function selectOrbital(orbitalIndex) {
+            selectedOrbital = orbitalIndex;
+            
+            // Update UI selection
+            document.querySelectorAll('.orbital-item').forEach(item => {
+                item.classList.remove('selected');
+                if (parseInt(item.dataset.orbitalIndex) === orbitalIndex) {
+                    item.classList.add('selected');
+                }
+            });
+            
+            // Find orbital data
+            const orbital = calculationResults.orbitals.find(orb => orb.orbital_index === orbitalIndex);
+            if (orbital) {
+                displayOrbital(orbital);
+                updateOrbitalInfo(orbital);
+            }
+        }
+        
+        function displayOrbital(orbital) {
+            const isovalue = parseFloat(document.getElementById('isovalueSlider').value);
+            
+            // Fetch isosurface data
+            fetch(`/api/professional_orbitals/isosurface/${currentJobId}/${orbital.orbital_index}/${isovalue}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        renderOrbital(data);
+                    } else {
+                        console.error('Error fetching isosurface:', data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching isosurface:', error);
+                });
+        }
+        
+        function renderOrbital(orbitalData) {
+            viewer3d.clear();
+            
+            // Add molecule structure
+            if (window.currentXyzContent) {
+                viewer3d.addModel(window.currentXyzContent, 'xyz');
+                viewer3d.setStyle({}, {stick: {radius: 0.1}, sphere: {scale: 0.2}});
+            }
+            
+            // Add orbital isosurface (simplified rendering)
+            if (orbitalData.mesh_data && orbitalData.mesh_data.vertices.length > 0) {
+                const vertices = orbitalData.mesh_data.vertices;
+                const faces = orbitalData.mesh_data.faces;
+                
+                // Create isosurface representation (simplified)
+                const positiveColor = getSelectedColor('positiveColorPicker');
+                const negativeColor = getSelectedColor('negativeColorPicker');
+                const opacity = parseFloat(document.getElementById('opacitySlider').value);
+                
+                // Add positive isosurface
+                viewer3d.addIsosurface({
+                    color: positiveColor,
+                    opacity: opacity,
+                    smoothness: 5
+                });
+                
+                // Add negative isosurface
+                viewer3d.addIsosurface({
+                    color: negativeColor,
+                    opacity: opacity,
+                    smoothness: 5
+                });
+            }
+            
+            viewer3d.zoomTo();
+            viewer3d.render();
+        }
+        
+        function getSelectedColor(pickerId) {
+            const picker = document.getElementById(pickerId);
+            const selected = picker.querySelector('.color-option.selected');
+            return selected ? selected.dataset.color : '#4ecdc4';
+        }
+        
+        function updateOrbitalInfo(orbital) {
+            const orbitalInfo = document.getElementById('orbitalInfo');
+            const orbitalProperties = document.getElementById('orbitalProperties');
+            
+            orbitalProperties.innerHTML = `
+                <div class="property-item">
+                    <span class="property-label">Orbital Index</span>
+                    <span class="property-value">${orbital.orbital_index}</span>
+                </div>
+                <div class="property-item">
+                    <span class="property-label">Energy (eV)</span>
+                    <span class="property-value">${orbital.energy_ev.toFixed(4)}</span>
+                </div>
+                <div class="property-item">
+                    <span class="property-label">Energy (Ha)</span>
+                    <span class="property-value">${orbital.energy_hartree.toFixed(6)}</span>
+                </div>
+                <div class="property-item">
+                    <span class="property-label">Occupation</span>
+                    <span class="property-value">${orbital.occupation.toFixed(2)}</span>
+                </div>
+                <div class="property-item">
+                    <span class="property-label">Type</span>
+                    <span class="property-value">${orbital.orbital_type}</span>
+                </div>
+                <div class="property-item">
+                    <span class="property-label">Symmetry</span>
+                    <span class="property-value">${orbital.symmetry || 'N/A'}</span>
+                </div>
+            `;
+            
+            orbitalInfo.style.display = 'block';
+        }
+        
+        function initializeEnergyChart() {
+            const ctx = document.getElementById('energyChart').getContext('2d');
+            energyChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Occupied Orbitals',
+                        data: [],
+                        backgroundColor: '#3498db',
+                        borderColor: '#2980b9',
+                        pointRadius: 6
+                    }, {
+                        label: 'Virtual Orbitals',
+                        data: [],
+                        backgroundColor: '#e74c3c',
+                        borderColor: '#c0392b',
+                        pointRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Orbital Index'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Energy (eV)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Orbital ${context.parsed.x}: ${context.parsed.y.toFixed(3)} eV`;
+                                }
+                            }
+                        }
+                    },
+                    onClick: function(event, elements) {
+                        if (elements.length > 0) {
+                            const orbitalIndex = elements[0].parsed.x;
+                            selectOrbital(orbitalIndex);
+                        }
+                    }
+                }
+            });
+        }
+        
+        function updateEnergyChart(orbitals) {
+            const occupiedData = [];
+            const virtualData = [];
+            
+            orbitals.forEach(orbital => {
+                const point = {x: orbital.orbital_index, y: orbital.energy_ev};
+                if (orbital.occupation > 0.5) {
+                    occupiedData.push(point);
+                } else {
+                    virtualData.push(point);
+                }
+            });
+            
+            energyChart.data.datasets[0].data = occupiedData;
+            energyChart.data.datasets[1].data = virtualData;
+            energyChart.update();
+        }
+        
+        // Control event handlers
+        function updateIsovalue() {
+            const slider = document.getElementById('isovalueSlider');
+            const display = document.getElementById('isovalueDisplay');
+            display.textContent = slider.value;
+            
+            if (selectedOrbital !== null) {
+                const orbital = calculationResults.orbitals.find(orb => orb.orbital_index === selectedOrbital);
+                if (orbital) {
+                    displayOrbital(orbital);
+                }
+            }
+        }
+        
+        function updateVisualizationStyle() {
+            if (selectedOrbital !== null) {
+                const orbital = calculationResults.orbitals.find(orb => orb.orbital_index === selectedOrbital);
+                if (orbital) {
+                    displayOrbital(orbital);
+                }
+            }
+        }
+        
+        function updateOpacity() {
+            const slider = document.getElementById('opacitySlider');
+            const display = document.getElementById('opacityValue');
+            display.textContent = slider.value;
+            
+            if (selectedOrbital !== null) {
+                const orbital = calculationResults.orbitals.find(orb => orb.orbital_index === selectedOrbital);
+                if (orbital) {
+                    displayOrbital(orbital);
+                }
+            }
+        }
+        
+        function updateScale() {
+            const slider = document.getElementById('scaleSlider');
+            const display = document.getElementById('scaleValue');
+            display.textContent = slider.value;
+            
+            viewer3d.zoom(parseFloat(slider.value));
+            viewer3d.render();
+        }
+        
+        function updateOrbitalColors() {
+            if (selectedOrbital !== null) {
+                const orbital = calculationResults.orbitals.find(orb => orb.orbital_index === selectedOrbital);
+                if (orbital) {
+                    displayOrbital(orbital);
+                }
+            }
+        }
+        
+        // Export functions
+        function exportImage() {
+            const canvas = viewer3d.getCanvas();
+            const link = document.createElement('a');
+            link.download = `orbital_${selectedOrbital}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+        
+        function exportData() {
+            if (!calculationResults) {
+                alert('No calculation data to export');
+                return;
+            }
+            
+            const data = JSON.stringify(calculationResults, null, 2);
+            const blob = new Blob([data], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = 'orbital_data.json';
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function exportCubeFiles() {
+            if (!currentJobId) {
+                alert('No active calculation');
+                return;
+            }
+            
+            window.open(`/api/professional_orbitals/export_cubes/${currentJobId}`, '_blank');
+        }
+    </script>
+</body>
+</html>

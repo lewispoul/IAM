@@ -12,8 +12,8 @@
     <!-- 3Dmol.js for molecular visualization -->
     <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
     
-    <!-- Custom styles -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Custom styles with performance optimizations -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style_fixed.css') }}">
 </head>
 <body>
     <div class="header-bar d-flex justify-content-between align-items-center px-4">
@@ -1197,5 +1197,10 @@ Physical Chemistry Analysis Platform`;
         z-index: 1060 !important;
     }
     </style>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Fixed script with performance optimizations -->
+    <script src="{{ url_for('static', filename='script_fixed.js') }}"></script>
 </body>
 </html>
