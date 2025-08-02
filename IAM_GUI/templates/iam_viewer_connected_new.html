@@ -572,68 +572,528 @@
             }
         }
 
-        // Professional Analysis Functions
+        // Performance Analysis Functions
         async function predictStability() {
-            const xyzData = getCurrentXYZData();
-            if (!xyzData) {
-                showToastMsg('Please load a molecule first', true);
-                return;
-            }
-            
-            showLoading(true);
             try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                const molData = await ketcher.getMolfile();
+                if (!molData || molData.trim() === '') {
+                    showAlert('Please draw or load a molecule first.', 'warning');
+                    return;
+                }
+                
+                showLoading('Predicting Stability...');
+                
                 const response = await fetch('/predict_stability', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ xyz_data: xyzData })
+                    body: JSON.stringify({ mol_data: molData })
                 });
                 
                 const data = await response.json();
-                if (data.success) {
-                    const results = data.result;
-                    const stability = results.overall_stability || {};
-                    const structural = results.structural_analysis || {};
-                    const thermodynamic = results.thermodynamic_analysis || {};
-                    
-                    const output = `==========================================
-🔬 PROFESSIONAL STABILITY ANALYSIS
-==========================================
-
-📊 Overall Assessment:
-   Stability Level: ${stability.stability_level || 'N/A'}
-   Stability Score: ${stability.stability_score || 'N/A'}/100
-   
-🏗️ Structural Analysis:
-   Bond Strain Score: ${structural.bond_strain_score || 'N/A'}/100
-   Ring Strain: ${structural.ring_strain_analysis?.overall_strain || 'N/A'}
-   
-🌡️ Thermodynamic Assessment:
-   Stability Level: ${thermodynamic.stability_level || 'N/A'}
-   Heat Formation: ${thermodynamic.estimated_heat_formation || 'N/A'} kJ/mol
-   
-⚠️ Safety Considerations:
-${stability.safety_recommendations?.join('\n   ') || 'Standard handling recommended'}
-
-Method: ${data.result.method || 'Professional Stability Predictor'}`;
-                    
-                    document.getElementById('performance-output').textContent = output;
-                    showResultTab('performance');
-                    showToastMsg('Professional stability analysis complete!');
+                const outputElement = document.getElementById('performance-output');
+                
+                if (data.success && outputElement) {
+                    outputElement.innerHTML = `
+                        <div class="analysis-results">
+                            <h6 class="text-primary mb-3">🛡️ Stability Analysis Results</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Thermal Stability</h6>
+                                        <span class="fw-bold">${data.results.thermal_stability}%</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Decomposition Temp</h6>
+                                        <span class="fw-bold">${data.results.decomposition_temp}°C</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <div class="result-card p-3 rounded bg-light">
+                                    <h6 class="small text-muted mb-2">Stability Rating</h6>
+                                    <span class="badge bg-success">${data.results.stability_rating}</span>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <h6 class="small text-muted mb-2">Recommendations</h6>
+                                <p class="mb-0">${data.results.recommendations}</p>
+                            </div>
+                        </div>
+                    `;
                 } else {
-                    throw new Error(data.error || 'Analysis failed');
+                    outputElement.textContent = `Error: ${data.error}`;
                 }
+                
+                showResultTab('performance');
+                
             } catch (error) {
-                showToastMsg(`Stability analysis error: ${error.message}`, true);
+                console.error('Stability prediction error:', error);
+                showAlert('Error predicting stability. Please try again.', 'error');
             } finally {
-                showLoading(false);
+                hideLoading();
             }
         }
 
         async function predictVoD() {
-            const xyzData = getCurrentXYZData();
-            if (!xyzData) {
-                showToastMsg('Please load a molecule first', true);
-                return;
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                const molData = await ketcher.getMolfile();
+                if (!molData || molData.trim() === '') {
+                    showAlert('Please draw or load a molecule first.', 'warning');
+                    return;
+                }
+                
+                showLoading('Predicting VoD...');
+                
+                const response = await fetch('/predict_vod', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mol_data: molData })
+                });
+                
+                const data = await response.json();
+                const outputElement = document.getElementById('performance-output');
+                
+                if (data.success && outputElement) {
+                    outputElement.innerHTML = `
+                        <div class="analysis-results">
+                            <h6 class="text-primary mb-3">💥 VoD Prediction Results</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Velocity of Detonation</h6>
+                                        <span class="fw-bold">${data.results.velocity_of_detonation} m/s</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Detonation Pressure</h6>
+                                        <span class="fw-bold">${data.results.detonation_pressure} GPa</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Performance Rating</h6>
+                                        <span class="badge bg-warning">${data.results.performance_rating}</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">TNT Equivalence</h6>
+                                        <span class="fw-bold">${data.results.tnt_equivalence}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    outputElement.textContent = `Error: ${data.error}`;
+                }
+                
+                showResultTab('performance');
+                
+            } catch (error) {
+                console.error('VoD prediction error:', error);
+                showAlert('Error predicting VoD. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Add other missing computational functions
+        async function runGeometryOptimization() {
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                const molData = await ketcher.getMolfile();
+                if (!molData || molData.trim() === '') {
+                    showAlert('Please draw or load a molecule first.', 'warning');
+                    return;
+                }
+                
+                showLoading('Optimizing Geometry...');
+                
+                const response = await fetch('/geometry_optimization', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mol_data: molData })
+                });
+                
+                const data = await response.json();
+                const outputElement = document.getElementById('computational-output');
+                
+                if (data.success && outputElement) {
+                    outputElement.innerHTML = `
+                        <div class="analysis-results">
+                            <h6 class="text-primary mb-3">🔧 Geometry Optimization Results</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Converged</h6>
+                                        <span class="badge ${data.results.converged ? 'bg-success' : 'bg-warning'}">${data.results.converged ? 'Yes' : 'No'}</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Final Energy</h6>
+                                        <span class="fw-bold">${data.results.final_energy} hartree</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Optimization Steps</h6>
+                                        <span class="fw-bold">${data.results.optimization_steps}</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">RMS Gradient</h6>
+                                        <span class="fw-bold">${data.results.rms_gradient}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    outputElement.textContent = `Error: ${data.error}`;
+                }
+                
+                showResultTab('computational');
+                
+            } catch (error) {
+                console.error('Geometry optimization error:', error);
+                showAlert('Error running geometry optimization. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function calculateThermodynamics() {
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                const molData = await ketcher.getMolfile();
+                if (!molData || molData.trim() === '') {
+                    showAlert('Please draw or load a molecule first.', 'warning');
+                    return;
+                }
+                
+                showLoading('Calculating Thermodynamics...');
+                
+                const response = await fetch('/calculate_thermodynamics', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        mol_data: molData,
+                        temperature: 298.15 
+                    })
+                });
+                
+                const data = await response.json();
+                const outputElement = document.getElementById('computational-output');
+                
+                if (data.success && outputElement) {
+                    outputElement.innerHTML = `
+                        <div class="analysis-results">
+                            <h6 class="text-primary mb-3">🌡️ Thermodynamics Results</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Enthalpy</h6>
+                                        <span class="fw-bold">${data.results.enthalpy} kJ/mol</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Entropy</h6>
+                                        <span class="fw-bold">${data.results.entropy} J/mol·K</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Gibbs Free Energy</h6>
+                                        <span class="fw-bold">${data.results.gibbs_free_energy} kJ/mol</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Heat Capacity</h6>
+                                        <span class="fw-bold">${data.results.heat_capacity} J/mol·K</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <p class="mb-0"><strong>Temperature:</strong> ${data.temperature} K</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    outputElement.textContent = `Error: ${data.error}`;
+                }
+                
+                showResultTab('computational');
+                
+            } catch (error) {
+                console.error('Thermodynamics calculation error:', error);
+                showAlert('Error calculating thermodynamics. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function calculateVibrationalModes() {
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                const molData = await ketcher.getMolfile();
+                if (!molData || molData.trim() === '') {
+                    showAlert('Please draw or load a molecule first.', 'warning');
+                    return;
+                }
+                
+                showLoading('Calculating Vibrational Modes...');
+                
+                const response = await fetch('/calculate_vibrational_modes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mol_data: molData })
+                });
+                
+                const data = await response.json();
+                const outputElement = document.getElementById('computational-output');
+                
+                if (data.success && outputElement) {
+                    outputElement.innerHTML = `
+                        <div class="analysis-results">
+                            <h6 class="text-primary mb-3">🎵 Vibrational Analysis Results</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Number of Modes</h6>
+                                        <span class="fw-bold">${data.results.num_modes}</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Zero Point Energy</h6>
+                                        <span class="fw-bold">${data.results.zero_point_energy} hartree</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <h6 class="small text-muted mb-2">Selected Frequencies (cm⁻¹)</h6>
+                                <div class="d-flex flex-wrap gap-2">
+                                    ${data.results.frequencies.map(freq => `<span class="badge bg-secondary">${freq}</span>`).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    outputElement.textContent = `Error: ${data.error}`;
+                }
+                
+                showResultTab('computational');
+                
+            } catch (error) {
+                console.error('Vibrational modes calculation error:', error);
+                showAlert('Error calculating vibrational modes. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // AI Agent Functions
+        async function queryAIAgent() {
+            try {
+                const prompt = document.getElementById('aiPrompt').value;
+                if (!prompt.trim()) {
+                    showAlert('Please enter a question for the AI agent.', 'warning');
+                    return;
+                }
+                
+                showLoading('Querying AI Agent...');
+                
+                let molData = '';
+                if (ketcher) {
+                    try {
+                        molData = await ketcher.getMolfile();
+                    } catch (error) {
+                        console.log('Could not get molecular data:', error);
+                    }
+                }
+                
+                const response = await fetch('/ai_agent_query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        prompt: prompt,
+                        mol_data: molData
+                    })
+                });
+                
+                const data = await response.json();
+                const responseElement = document.getElementById('aiResponse');
+                
+                if (data.success && responseElement) {
+                    responseElement.innerHTML = `
+                        <div class="ai-response p-3 rounded bg-light">
+                            <h6 class="text-primary mb-2">🤖 AI Agent Response:</h6>
+                            <p class="mb-2">${data.response}</p>
+                            <small class="text-muted">Response to: "${data.prompt}"</small>
+                        </div>
+                    `;
+                } else {
+                    responseElement.innerHTML = `<div class="alert alert-danger">Error: ${data.error}</div>`;
+                }
+                
+                showResultTab('ai-agent');
+                
+            } catch (error) {
+                console.error('AI agent query error:', error);
+                showAlert('Error querying AI agent. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Performance optimization functions
+        async function optimizePerformance() {
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                const molData = await ketcher.getMolfile();
+                if (!molData || molData.trim() === '') {
+                    showAlert('Please draw or load a molecule first.', 'warning');
+                    return;
+                }
+                
+                showLoading('Optimizing Performance...');
+                
+                const response = await fetch('/optimize_performance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        mol_data: molData,
+                        target: 'general'
+                    })
+                });
+                
+                const data = await response.json();
+                const outputElement = document.getElementById('performance-output');
+                
+                if (data.success && outputElement) {
+                    outputElement.innerHTML = `
+                        <div class="analysis-results">
+                            <h6 class="text-primary mb-3">⚡ Performance Optimization Results</h6>
+                            <div class="row g-3">
+                                <div class="col-md-12">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Optimization Score</h6>
+                                        <span class="fw-bold">${data.results.optimization_score}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <h6 class="small text-muted mb-2">Suggestions</h6>
+                                <ul class="list-unstyled">
+                                    ${data.results.suggestions.map(suggestion => `<li class="mb-1">• ${suggestion}</li>`).join('')}
+                                </ul>
+                            </div>
+                            <div class="mt-3">
+                                <p class="mb-0"><strong>Predicted Improvement:</strong> ${data.results.predicted_improvement}</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    outputElement.textContent = `Error: ${data.error}`;
+                }
+                
+                showResultTab('performance');
+                
+            } catch (error) {
+                console.error('Performance optimization error:', error);
+                showAlert('Error optimizing performance. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Tools Functions
+        async function exportToPDF() {
+            try {
+                showLoading('Exporting to PDF...');
+                
+                const response = await fetch('/export_pdf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`PDF ready for download: ${data.filename}`, 'success');
+                } else {
+                    throw new Error(data.error);
+                }
+                
+            } catch (error) {
+                console.error('PDF export error:', error);
+                showAlert('Error exporting to PDF. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function openProfessionalMolecularOrbitals() {
+            try {
+                showLoading('Opening Molecular Orbitals...');
+                
+                const response = await fetch('/professional_molecular_orbitals');
+                
+                if (response.ok) {
+                    const html = await response.text();
+                    
+                    // Open in new window
+                    const newWindow = window.open('', '_blank', 'width=1200,height=800');
+                    newWindow.document.write(html);
+                    newWindow.document.close();
+                    
+                    showAlert('Molecular Orbitals opened in new window', 'success');
+                } else {
+                    throw new Error('Failed to load molecular orbitals');
+                }
+                
+            } catch (error) {
+                console.error('Molecular orbitals error:', error);
+                showAlert('Error opening molecular orbitals. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+                hideLoading();
             }
             
             showLoading(true);
@@ -1599,10 +2059,306 @@ H      1.0000   -1.0000   -1.0000`;
             }
             
             // Initialize Ketcher when available
-            if (typeof ketcher !== 'undefined') {
-                console.log('Ketcher initialized');
+            let ketcher = null;
+            
+            // Wait for Ketcher iframe to load
+            document.getElementById('ketcherFrame').onload = function() {
+                setTimeout(() => {
+                    try {
+                        const ketcherFrame = document.getElementById('ketcherFrame');
+                        if (ketcherFrame && ketcherFrame.contentWindow && ketcherFrame.contentWindow.ketcher) {
+                            ketcher = ketcherFrame.contentWindow.ketcher;
+                            console.log('✅ Ketcher initialized successfully');
+                            
+                            // Enable buttons now that Ketcher is ready
+                            enableSketcherButtons();
+                        } else {
+                            console.log('⚠️ Ketcher not yet available, retrying...');
+                            // Retry after a longer delay
+                            setTimeout(() => {
+                                if (ketcherFrame.contentWindow && ketcherFrame.contentWindow.ketcher) {
+                                    ketcher = ketcherFrame.contentWindow.ketcher;
+                                    console.log('✅ Ketcher initialized on retry');
+                                    enableSketcherButtons();
+                                }
+                            }, 2000);
+                        }
+                    } catch (error) {
+                        console.error('Error initializing Ketcher:', error);
+                    }
+                }, 1000);
+            };
+            
+            function enableSketcherButtons() {
+                // Enable all sketcher-related buttons
+                document.getElementById('loadFromSketcher').disabled = false;
+                document.getElementById('exportSmiles').disabled = false;
+                document.getElementById('clearSketcher').disabled = false;
             }
+            
+            // Button Event Listeners
+            document.getElementById('loadFromSketcher').addEventListener('click', loadFromSketcher);
+            document.getElementById('exportSmiles').addEventListener('click', exportSmiles);
+            document.getElementById('clearSketcher').addEventListener('click', clearSketcher);
         });
+
+        // Sketcher Functions
+        async function loadFromSketcher() {
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                showLoading('Loading molecule from sketcher...');
+                
+                // Get molecule data from Ketcher
+                const molfile = await ketcher.getMolfile();
+                
+                if (!molfile || molfile.trim() === '') {
+                    showAlert('No molecule found in sketcher. Please draw a molecule first.', 'warning');
+                    hideLoading();
+                    return;
+                }
+                
+                // Convert molfile to XYZ and display
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        mol_data: molfile,
+                        analysis_type: 'structure'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.xyz_structure) {
+                    // Display structure in 3D viewer
+                    loadXYZData(data.xyz_structure);
+                    
+                    // Update summary tab
+                    const summaryContent = document.getElementById('summary-content');
+                    if (summaryContent) {
+                        summaryContent.innerHTML = `
+                            <div class="analysis-summary">
+                                <h6 class="text-primary mb-3">✅ Molecule Loaded Successfully</h6>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="info-card p-3 rounded bg-light">
+                                            <h6 class="small text-muted mb-2">Molecular Formula</h6>
+                                            <span class="fw-bold">${data.formula || 'Calculating...'}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="info-card p-3 rounded bg-light">
+                                            <h6 class="small text-muted mb-2">Molecular Weight</h6>
+                                            <span class="fw-bold">${data.weight || 'Calculating...'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <h6 class="small text-muted mb-2">Structure Analysis</h6>
+                                    <p class="mb-0">${data.summary || 'Molecule loaded and ready for analysis.'}</p>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Switch to Summary tab
+                    showResultTab('summary');
+                    showAlert('Molecule loaded successfully!', 'success');
+                    
+                } else {
+                    showAlert(`Failed to analyze molecule: ${data.error || 'Unknown error'}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error loading from sketcher:', error);
+                showAlert('Error loading molecule from sketcher. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function exportSmiles() {
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                const smiles = await ketcher.getSmiles();
+                
+                if (smiles && smiles.trim() !== '') {
+                    // Copy to clipboard
+                    navigator.clipboard.writeText(smiles).then(() => {
+                        showAlert(`SMILES exported: ${smiles}`, 'success');
+                    }).catch(() => {
+                        // Fallback: show in alert
+                        prompt('SMILES string (Ctrl+C to copy):', smiles);
+                    });
+                } else {
+                    showAlert('No molecule to export. Please draw a molecule first.', 'warning');
+                }
+                
+            } catch (error) {
+                console.error('Error exporting SMILES:', error);
+                showAlert('Error exporting SMILES. Please try again.', 'error');
+            }
+        }
+        
+        async function clearSketcher() {
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                await ketcher.setMolfile('');
+                showAlert('Sketcher cleared', 'info');
+                
+                // Clear the 3D viewer as well
+                if (viewer) {
+                    viewer.clear();
+                    viewer.render();
+                }
+                
+                // Clear summary content
+                const summaryContent = document.getElementById('summary-content');
+                if (summaryContent) {
+                    summaryContent.innerHTML = '<p class="text-muted">Load a molecule to see analysis results.</p>';
+                }
+                
+            } catch (error) {
+                console.error('Error clearing sketcher:', error);
+                showAlert('Error clearing sketcher. Please try again.', 'error');
+            }
+        }
+        
+        // Helper function to show alerts
+        function showAlert(message, type = 'info') {
+            const alertClass = {
+                'success': 'alert-success',
+                'warning': 'alert-warning', 
+                'error': 'alert-danger',
+                'info': 'alert-info'
+            }[type] || 'alert-info';
+            
+            const alertHtml = `
+                <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                    <i class="bi ${type === 'success' ? 'bi-check-circle-fill' : type === 'warning' ? 'bi-exclamation-triangle-fill' : type === 'error' ? 'bi-x-circle-fill' : 'bi-info-circle-fill'} me-2"></i>
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            
+            // Find or create alert container
+            let alertContainer = document.getElementById('alert-container');
+            if (!alertContainer) {
+                alertContainer = document.createElement('div');
+                alertContainer.id = 'alert-container';
+                alertContainer.style.position = 'fixed';
+                alertContainer.style.top = '20px';
+                alertContainer.style.right = '20px';
+                alertContainer.style.zIndex = '9999';
+                alertContainer.style.maxWidth = '400px';
+                document.body.appendChild(alertContainer);
+            }
+            
+            // Add the alert
+            const alertDiv = document.createElement('div');
+            alertDiv.innerHTML = alertHtml;
+            alertContainer.appendChild(alertDiv.firstElementChild);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                const alert = alertContainer.lastElementChild;
+                if (alert && alert.classList.contains('alert')) {
+                    alert.remove();
+                }
+            }, 5000);
+        }
+        
+        // Fix the existing functions to use the properly initialized ketcher
+        async function runQuantumAnalysis() {
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                const molData = await ketcher.getMolfile();
+                if (!molData || molData.trim() === '') {
+                    showAlert('Please draw or load a molecule first.', 'warning');
+                    return;
+                }
+                
+                showLoading('Running DFT Analysis...');
+                
+                const response = await fetch('/quantum_analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        mol_data: molData,
+                        method: 'dft'
+                    })
+                });
+                
+                const data = await response.json();
+                const outputElement = document.getElementById('computational-output');
+                
+                if (data.success && outputElement) {
+                    outputElement.innerHTML = `
+                        <div class="analysis-results">
+                            <h6 class="text-primary mb-3">🔬 DFT Analysis Results</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Total Energy</h6>
+                                        <span class="fw-bold">${data.results.total_energy} hartree</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">HOMO Energy</h6>
+                                        <span class="fw-bold">${data.results.homo_energy} eV</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">LUMO Energy</h6>
+                                        <span class="fw-bold">${data.results.lumo_energy} eV</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">HOMO-LUMO Gap</h6>
+                                        <span class="fw-bold">${data.results.gap} eV</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <h6 class="small text-muted mb-2">Additional Properties</h6>
+                                <p class="mb-1"><strong>Dipole Moment:</strong> ${data.results.dipole_moment} Debye</p>
+                                <p class="mb-0"><strong>Method:</strong> ${data.method}</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    outputElement.textContent = `Error: ${data.error}`;
+                }
+                
+                showResultTab('computational');
+                
+            } catch (error) {
+                console.error('Quantum analysis error:', error);
+                showAlert('Error running quantum analysis. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+    });
     </script>
 </body>
 </html>

@@ -7,9 +7,6 @@ import json
 import traceback
 import sys
 import importlib
-import io
-import zipfile
-import base64
 from datetime import datetime
 import time
 import psutil
@@ -55,93 +52,21 @@ except ImportError:
         def MolFromMolBlock(mol): return None
         @staticmethod
         def MolToXYZBlock(mol): return ""
-        @staticmethod
-        def AddHs(mol): return mol
-        
-        class rdMolDescriptors:
-            @staticmethod
-            def CalcMolFormula(mol): return "Unknown"
-    
     class AllChem:
         @staticmethod
-        def EmbedMolecule(mol, *args, **kwargs): return -1
+        def EmbedMolecule(mol): return -1
         @staticmethod
         def UFFOptimizeMolecule(mol): return -1
-        @staticmethod
-        def MMFFOptimizeMolecule(mol): return -1
-        @staticmethod
-        def ETKDG(): return None
-    
-    class rdDistGeom:
-        @staticmethod
-        def EmbedMolecule(mol, *args, **kwargs): return -1
-        @staticmethod
-        def ETKDGv3(): return None
-        @staticmethod
-        def ETKDGv2(): return None
-        @staticmethod
-        def ETKDG(): return None
-    
-    class rdForceFieldHelpers:
-        @staticmethod
-        def UFFOptimizeMolecule(mol): return -1
-        @staticmethod
-        def MMFFOptimizeMolecule(mol): return -1
 
 # Add IAM_Knowledge to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../IAM_Knowledge')))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Import VoD predictor
-try:
-    from IAM_VoD_Predictor import predict_vod
-    VOD_PREDICTOR_AVAILABLE = True
-    print("✅ VoD Predictor loaded successfully")
-except ImportError as e:
-    print(f"⚠️ VoD Predictor not available: {e}")
-    VOD_PREDICTOR_AVAILABLE = False
-
-# Import stability predictor
-try:
-    from IAM_StabilityPredictor import predict_stability
-    STABILITY_PREDICTOR_AVAILABLE = True
-    print("✅ Stability Predictor loaded successfully")
-except ImportError as e:
-    print(f"⚠️ Stability Predictor not available: {e}")
-    STABILITY_PREDICTOR_AVAILABLE = False
-
-# Import thermodynamics predictor
-try:
-    from IAM_ThermoPredictor import predict_thermo
-    THERMO_PREDICTOR_AVAILABLE = True
-    print("✅ Thermo Predictor loaded successfully")
-except ImportError as e:
-    print(f"⚠️ Thermo Predictor not available: {e}")
-    THERMO_PREDICTOR_AVAILABLE = False
-
-# Import toxicity predictor
-try:
-    from IAM_ToxicityPredictor import predict_toxicity
-    TOXICITY_PREDICTOR_AVAILABLE = True
-    print("✅ Toxicity Predictor loaded successfully")
-except ImportError as e:
-    print(f"⚠️ Toxicity Predictor not available: {e}")
-    TOXICITY_PREDICTOR_AVAILABLE = False
-
-# Import performance optimization
-try:
-    from performance_optimization import optimize_explosive_performance
-    PERFORMANCE_OPTIMIZER_AVAILABLE = True
-    print("✅ Performance Optimizer loaded successfully")
-except ImportError as e:
-    print(f"⚠️ Performance Optimizer not available: {e}")
-    PERFORMANCE_OPTIMIZER_AVAILABLE = False
-
 app = Flask(__name__, template_folder='templates')
 CORS(app)
 
 # Initialize performance monitoring
-app.config['START_TIME'] = time.time()
+app.start_time = time.time()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -165,142 +90,32 @@ def handle_exception(e):
         "details": traceback.format_exc()
     }), 500
 
-# Additional error handlers (ported from Pi branch)
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({
-        "success": False,
-        "error": "Endpoint not found",
-        "message": "The requested resource does not exist"
-    }), 404
-
-@app.errorhandler(413)
-def too_large(error):
-    return jsonify({
-        "success": False,
-        "error": "File too large",
-        "message": "The uploaded file exceeds the maximum allowed size"
-    }), 413
-
 # --- RDKit 3D coordinate generation helpers ---
 def embed_molecule_with_3d(mol):
     """
-    Robust 3D embedding with multiple fallback methods (ported from Pi branch).
-    Tries ETKDGv3 → ETKDGv2 → ETKDG with UFF optimization.
+    Embed 3D coordinates using ETKDG if available, fallback to standard, and optimize with UFF or MMFF if available.
     """
-    if not RDKIT_AVAILABLE or mol is None:
-        return mol
-    
+    # Try ETKDG if available
+    params = None
+    if hasattr(rdDistGeom, "ETKDGv3"):
+        params = rdDistGeom.ETKDGv3()
+    elif hasattr(rdDistGeom, "ETKDGv2"):
+        params = rdDistGeom.ETKDGv2()
+    elif hasattr(rdDistGeom, "ETKDG"):
+        params = rdDistGeom.ETKDG()
+    if params is not None:
+        rdDistGeom.EmbedMolecule(mol, params)
+    else:
+        rdDistGeom.EmbedMolecule(mol)
+    # Optimize geometry if possible
     try:
-        # Add hydrogens first
-        mol = Chem.AddHs(mol)
-        
-        # Try ETKDGv3 first (most recent)
-        try:
-            if hasattr(rdDistGeom, "ETKDGv3"):
-                ps = rdDistGeom.ETKDGv3()
-                if hasattr(ps, 'randomSeed'):
-                    ps.randomSeed = 42  # For reproducibility
-                if AllChem.EmbedMolecule(mol, ps) == 0:
-                    print("✅ 3D embedding successful with ETKDGv3")
-                    # Optimize with UFF
-                    try:
-                        AllChem.UFFOptimizeMolecule(mol)
-                        print("✅ UFF optimization successful")
-                    except:
-                        print("⚠️ UFF optimization failed, continuing without optimization")
-                    return mol
-        except Exception as e:
-            print(f"⚠️ ETKDGv3 failed: {e}")
-        
-        # Fallback to ETKDGv2
-        try:
-            if hasattr(rdDistGeom, "ETKDGv2"):
-                ps = rdDistGeom.ETKDGv2()
-                if hasattr(ps, 'randomSeed'):
-                    ps.randomSeed = 42
-                if AllChem.EmbedMolecule(mol, ps) == 0:
-                    print("✅ 3D embedding successful with ETKDGv2")
-                    try:
-                        AllChem.UFFOptimizeMolecule(mol)
-                    except:
-                        print("⚠️ UFF optimization failed")
-                    return mol
-        except Exception as e:
-            print(f"⚠️ ETKDGv2 failed: {e}")
-        
-        # Final fallback to basic ETKDG
-        try:
-            if hasattr(rdDistGeom, "ETKDG"):
-                ps = rdDistGeom.ETKDG()
-                if hasattr(ps, 'randomSeed'):
-                    ps.randomSeed = 42
-                if AllChem.EmbedMolecule(mol, ps) == 0:
-                    print("✅ 3D embedding successful with ETKDG")
-                    try:
-                        AllChem.UFFOptimizeMolecule(mol)
-                    except:
-                        print("⚠️ UFF optimization failed")
-                    return mol
-        except Exception as e:
-            print(f"⚠️ ETKDG failed: {e}")
-        
-        # Absolute fallback - basic embedding
-        try:
-            if AllChem.EmbedMolecule(mol) == 0:
-                print("✅ 3D embedding successful with basic method")
-                try:
-                    AllChem.UFFOptimizeMolecule(mol)
-                except:
-                    pass
-                return mol
-        except Exception as e:
-            print(f"⚠️ Basic embedding failed: {e}")
-            
-        print("❌ All 3D embedding methods failed")
-        return mol
-        
-    except Exception as e:
-        print(f"❌ Critical error in 3D embedding: {e}")
-        return mol
-
-# Robust MOL to XYZ conversion (ported from Pi branch)
-def robust_mol_to_xyz(mol_data):
-    """
-    Robust conversion from MOL data to XYZ with error handling and cleaning.
-    """
-    if not RDKIT_AVAILABLE:
-        return None, "RDKit not available"
-    
-    try:
-        # Clean the MOL data
-        mol_lines = mol_data.strip().split('\n')
-        
-        # Basic MOL format validation
-        if len(mol_lines) < 4:
-            return None, "Invalid MOL format: too few lines"
-        
-        # Try to parse with RDKit
-        try:
-            mol = Chem.MolFromMolBlock(mol_data)
-            if mol is None:
-                return None, "RDKit could not parse MOL block"
-            
-            # Embed 3D coordinates
-            mol = embed_molecule_with_3d(mol)
-            
-            # Convert to XYZ
-            xyz_block = Chem.MolToXYZBlock(mol)
-            if not xyz_block or xyz_block.strip() == "":
-                return None, "Failed to generate XYZ coordinates"
-            
-            return xyz_block, None
-            
-        except Exception as e:
-            return None, f"MOL parsing error: {str(e)}"
-            
-    except Exception as e:
-        return None, f"Unexpected error in MOL conversion: {str(e)}"
+        if hasattr(rdForceFieldHelpers, "UFFOptimizeMolecule"):
+            rdForceFieldHelpers.UFFOptimizeMolecule(mol)
+        elif hasattr(rdForceFieldHelpers, "MMFFOptimizeMolecule"):
+            rdForceFieldHelpers.MMFFOptimizeMolecule(mol)
+    except Exception:
+        pass
+    return mol
 
 # Performance monitoring endpoints
 @app.route('/api/performance')
@@ -341,7 +156,7 @@ def health_check():
         status = {
             "status": "healthy",
             "timestamp": time.time(),
-            "uptime": time.time() - app.config.get('START_TIME', time.time()) if app.config.get('START_TIME') else 0,
+            "uptime": time.time() - app.start_time if hasattr(app, 'start_time') else 0,
             "version": "1.0.0",
             "components": {
                 "rdkit": RDKIT_AVAILABLE,
@@ -405,14 +220,14 @@ def cleanup_cache_endpoint():
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    """Main route - serves the professional IAM interface with glass-morphism design"""
+    """Main route - serves the enhanced IAM interface with improved performance"""
     import time
     timestamp = int(time.time())
     
     # Log which template we're serving for debugging
-    logger.info(f"Serving iam_viewer_connected_professional.html with timestamp {timestamp}")
+    logger.info(f"Serving iam_viewer_connected_new.html with timestamp {timestamp}")
     
-    response = make_response(render_template('iam_viewer_connected_professional.html', cache_bust=timestamp))
+    response = make_response(render_template('iam_viewer_connected_new.html', cache_bust=timestamp))
     # Add strong cache-busting headers
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
     response.headers['Pragma'] = 'no-cache'
@@ -598,6 +413,52 @@ elif energy_type == 'freq':
 
         return jsonify({"success": True, "xtb_json": xtb_data, "file_preview": ''.join(lines[:10]), "xyz": xyz_string_final})
 
+@app.route('/smiles_to_xyz', methods=['POST'])
+def smiles_to_xyz():
+    if not RDKIT_AVAILABLE:
+        return jsonify({
+            'success': False, 
+            'error': 'RDKit not available', 
+            'details': 'RDKit is required for SMILES to XYZ conversion. Please install RDKit or use XYZ files directly.'
+        }), 503
+        
+    data = request.get_json()
+    smiles = data.get('smiles', '')
+    try:
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            return jsonify({'success': False, 'error': 'Invalid SMILES', 'details': 'RDKit could not parse the SMILES string'}), 400
+            
+        mol = Chem.AddHs(mol)
+        mol = embed_molecule_with_3d(mol)
+        xyz = Chem.MolToXYZBlock(mol)
+        return jsonify({'success': True, 'xyz': xyz})
+    except Exception as e:
+        return jsonify({'success': False, 'error': 'SMILES conversion error', 'details': traceback.format_exc()})
+
+
+@app.route('/molfile_to_xyz', methods=['POST'])
+def molfile_to_xyz():
+    if not RDKIT_AVAILABLE:
+        return jsonify({
+            'success': False, 
+            'error': 'RDKit not available', 
+            'details': 'RDKit is required for MOL to XYZ conversion. Please install RDKit or use XYZ files directly.'
+        }), 503
+        
+    data = request.get_json()
+    molfile = data.get('molfile', '')
+    try:
+        mol = Chem.MolFromMolBlock(molfile)
+        if mol is None:
+            return jsonify({'success': False, 'error': 'Invalid MOL format', 'details': 'RDKit could not parse the MOL block'}), 400
+            
+        mol = Chem.AddHs(mol)
+        mol = embed_molecule_with_3d(mol)
+        xyz = Chem.MolToXYZBlock(mol)
+        return jsonify({'success': True, 'xyz': xyz})
+    except Exception as e:
+        return jsonify({'success': False, 'error': 'Molfile conversion error', 'details': traceback.format_exc()})
 
 def is_xyz_format(mol_string: str) -> bool:
     """
@@ -620,6 +481,8 @@ def is_xyz_format(mol_string: str) -> bool:
 
 def molblock_to_xyz(mol_block: str) -> str:
     import traceback
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
     try:
         lines = mol_block.strip().splitlines()
         # Ajoute une ligne de titre si manquante ou suspecte
@@ -627,26 +490,22 @@ def molblock_to_xyz(mol_block: str) -> str:
             lines = ["Generated by IAM"] + lines
         mol_block_fixed = "\n".join(lines)
 
-        mol = Chem.MolFromMolBlock(mol_block_fixed) if RDKIT_AVAILABLE else None
+        mol = Chem.MolFromMolBlock(mol_block_fixed, sanitize=True)
         if mol is None:
             raise ValueError("RDKit failed to parse the MOL block.")
 
-        if RDKIT_AVAILABLE and mol is not None:
-            mol = Chem.AddHs(mol)
-            if AllChem.EmbedMolecule(mol, AllChem.ETKDG()) != 0:
-                raise ValueError("Failed to generate 3D coordinates.")
-            AllChem.UFFOptimizeMolecule(mol)
+        mol = Chem.AddHs(mol)
+        if AllChem.EmbedMolecule(mol, AllChem.ETKDG()) != 0:
+            raise ValueError("Failed to generate 3D coordinates.")
+        AllChem.UFFOptimizeMolecule(mol)
 
-        if RDKIT_AVAILABLE and mol is not None:
-            conf = mol.GetConformer()
-            atoms = mol.GetAtoms()
-            xyz_lines = [f"{len(atoms)}", "Generated by IAM"]
-            for atom in atoms:
-                pos = conf.GetAtomPosition(atom.GetIdx())
-                xyz_lines.append(f"{atom.GetSymbol()} {pos.x:.6f} {pos.y:.6f} {pos.z:.6f}")
-            return "\n".join(xyz_lines)
-        else:
-            raise ValueError("RDKit not available or failed to process molecule")
+        conf = mol.GetConformer()
+        atoms = mol.GetAtoms()
+        xyz_lines = [f"{len(atoms)}", "Generated by IAM"]
+        for atom in atoms:
+            pos = conf.GetAtomPosition(atom.GetIdx())
+            xyz_lines.append(f"{atom.GetSymbol()} {pos.x:.6f} {pos.y:.6f} {pos.z:.6f}")
+        return "\n".join(xyz_lines)
 
     except Exception as e:
         print("❌ Error in molblock_to_xyz:", traceback.format_exc())
@@ -857,8 +716,8 @@ def geometry_optimization():
 
 @app.route('/predict_stability', methods=['POST'])
 @track_performance
-def predict_stability_endpoint():
-    """Stability prediction endpoint using IAM_StabilityPredictor"""
+def predict_stability():
+    """Stability prediction endpoint"""
     try:
         data = request.get_json()
         mol_data = data.get('mol_data', '')
@@ -866,54 +725,26 @@ def predict_stability_endpoint():
         if not mol_data:
             return jsonify({'success': False, 'error': 'No molecular data provided'})
         
-        # Use actual stability predictor if available
-        if STABILITY_PREDICTOR_AVAILABLE:
-            try:
-                stability_results = predict_stability(mol_data)
-                
-                # Structure the response for the frontend
-                results = {
-                    'success': True,
-                    'results': {
-                        'thermal_stability': stability_results.get('thermal_stability', 'N/A'),
-                        'decomposition_temp': stability_results.get('decomposition_temperature', 'N/A'),
-                        'stability_rating': stability_results.get('stability_rating', 'N/A'),
-                        'recommendations': stability_results.get('recommendations', 'Store safely'),
-                        'method': stability_results.get('method', 'Advanced Stability Prediction'),
-                        'sensitivity': stability_results.get('sensitivity', 'N/A')
-                    }
-                }
-                
-                return jsonify(results)
-                
-            except Exception as e:
-                print(f"Stability prediction error: {e}")
-                # Fallback to simulated results
-                results = {
-                    'success': True,
-                    'results': {
-                        'thermal_stability': 'N/A',
-                        'decomposition_temp': 'N/A',
-                        'stability_rating': 'Error in prediction',
-                        'error': str(e)
-                    }
-                }
-                return jsonify(results)
-        else:
-            # Stability predictor not available
-            results = {
-                'success': False,
-                'error': 'Stability Predictor module not available. Please ensure IAM_Knowledge is properly installed.'
+        # Simulate stability prediction
+        results = {
+            'success': True,
+            'results': {
+                'thermal_stability': 85.2,
+                'decomposition_temp': 320.5,
+                'stability_rating': 'High',
+                'recommendations': 'Store in cool, dry place. Avoid temperatures above 300°C.'
             }
-            return jsonify(results)
+        }
+        
+        return jsonify(results)
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/predict_vod', methods=['POST'])
 @track_performance
-def predict_vod_endpoint():
-    """VoD prediction endpoint using IAM_VoD_Predictor"""
+def predict_vod():
+    """VoD prediction endpoint"""
     try:
         data = request.get_json()
         mol_data = data.get('mol_data', '')
@@ -921,48 +752,18 @@ def predict_vod_endpoint():
         if not mol_data:
             return jsonify({'success': False, 'error': 'No molecular data provided'})
         
-        # Use actual VoD predictor if available
-        if VOD_PREDICTOR_AVAILABLE:
-            try:
-                vod_results = predict_vod(mol_data)
-                
-                # Structure the response for the frontend
-                results = {
-                    'success': True,
-                    'results': {
-                        'velocity_of_detonation': vod_results.get('vod', 'N/A'),
-                        'detonation_pressure': vod_results.get('pressure', 'N/A'), 
-                        'density': vod_results.get('density', 'N/A'),
-                        'method': vod_results.get('method', 'Advanced VoD Prediction'),
-                        'molecule_info': vod_results.get('molecule_info', {}),
-                        'oxygen_balance': vod_results.get('oxygen_balance', 'N/A'),
-                        'performance_rating': vod_results.get('rating', 'N/A'),
-                        'tnt_equivalence': vod_results.get('tnt_equivalent', 'N/A')
-                    }
-                }
-                
-                return jsonify(results)
-                
-            except Exception as e:
-                print(f"VoD prediction error: {e}")
-                # Fallback to simulated results
-                results = {
-                    'success': True,
-                    'results': {
-                        'velocity_of_detonation': 'N/A',
-                        'detonation_pressure': 'N/A',
-                        'performance_rating': 'Error in prediction',
-                        'error': str(e)
-                    }
-                }
-                return jsonify(results)
-        else:
-            # VoD predictor not available - return helpful message
-            results = {
-                'success': False,
-                'error': 'VoD Predictor module not available. Please ensure IAM_Knowledge is properly installed.'
+        # Simulate VoD prediction
+        results = {
+            'success': True,
+            'results': {
+                'velocity_of_detonation': 7850.3,
+                'detonation_pressure': 28.4,
+                'performance_rating': 'Moderate',
+                'tnt_equivalence': 1.12
             }
-            return jsonify(results)
+        }
+        
+        return jsonify(results)
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -1016,7 +817,7 @@ def professional_molecular_orbitals():
 @app.route('/calculate_thermodynamics', methods=['POST'])
 @track_performance
 def calculate_thermodynamics():
-    """Thermodynamics calculation endpoint using IAM_ThermoPredictor"""
+    """Thermodynamics calculation endpoint"""
     try:
         data = request.get_json()
         mol_data = data.get('mol_data', '')
@@ -1025,48 +826,19 @@ def calculate_thermodynamics():
         if not mol_data:
             return jsonify({'success': False, 'error': 'No molecular data provided'})
         
-        # Use actual thermo predictor if available
-        if THERMO_PREDICTOR_AVAILABLE:
-            try:
-                thermo_results = predict_thermo(mol_data)
-                
-                # Structure the response for the frontend
-                results = {
-                    'success': True,
-                    'temperature': temperature,
-                    'results': {
-                        'enthalpy': thermo_results.get('enthalpy', 'N/A'),
-                        'entropy': thermo_results.get('entropy', 'N/A'),
-                        'gibbs_free_energy': thermo_results.get('gibbs_free_energy', 'N/A'),
-                        'heat_capacity': thermo_results.get('heat_capacity', 'N/A'),
-                        'method': thermo_results.get('method', 'Advanced Thermodynamic Prediction')
-                    }
-                }
-                
-                return jsonify(results)
-                
-            except Exception as e:
-                print(f"Thermodynamics prediction error: {e}")
-                # Fallback to simulated results
-                results = {
-                    'success': True,
-                    'temperature': temperature,
-                    'results': {
-                        'enthalpy': 'N/A',
-                        'entropy': 'N/A',
-                        'gibbs_free_energy': 'N/A',
-                        'heat_capacity': 'N/A',
-                        'error': str(e)
-                    }
-                }
-                return jsonify(results)
-        else:
-            # Thermo predictor not available
-            results = {
-                'success': False,
-                'error': 'Thermo Predictor module not available. Please ensure IAM_Knowledge is properly installed.'
+        # Simulate thermodynamics calculation
+        results = {
+            'success': True,
+            'temperature': temperature,
+            'results': {
+                'enthalpy': -2341.56,
+                'entropy': 156.78,
+                'gibbs_free_energy': -2388.42,
+                'heat_capacity': 45.23
             }
-            return jsonify(results)
+        }
+        
+        return jsonify(results)
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -1101,7 +873,7 @@ def calculate_vibrational_modes():
 @app.route('/optimize_performance', methods=['POST'])
 @track_performance
 def optimize_performance():
-    """Performance optimization endpoint using performance_optimization module"""
+    """Performance optimization endpoint"""
     try:
         data = request.get_json()
         mol_data = data.get('mol_data', '')
@@ -1110,102 +882,22 @@ def optimize_performance():
         if not mol_data:
             return jsonify({'success': False, 'error': 'No molecular data provided'})
         
-        # Use actual performance optimizer if available
-        if PERFORMANCE_OPTIMIZER_AVAILABLE:
-            try:
-                optimization_results = optimize_explosive_performance(mol_data)
-                
-                # Structure the response for the frontend
-                results = {
-                    'success': True,
-                    'target': target,
-                    'results': {
-                        'optimization_score': optimization_results.get('score', 'N/A'),
-                        'suggestions': optimization_results.get('optimizations', []),
-                        'predicted_improvement': optimization_results.get('improvement', 'N/A'),
-                        'method': optimization_results.get('method', 'Advanced Performance Optimization'),
-                        'current_properties': optimization_results.get('current_properties', {})
-                    }
-                }
-                
-                return jsonify(results)
-                
-            except Exception as e:
-                print(f"Performance optimization error: {e}")
-                # Fallback to simulated results
-                results = {
-                    'success': True,
-                    'target': target,
-                    'results': {
-                        'optimization_score': 'N/A',
-                        'suggestions': ['Error in optimization analysis'],
-                        'predicted_improvement': 'N/A',
-                        'error': str(e)
-                    }
-                }
-                return jsonify(results)
-        else:
-            # Performance optimizer not available
-            results = {
-                'success': False,
-                'error': 'Performance Optimizer module not available. Please ensure IAM_Knowledge is properly installed.'
+        # Simulate performance optimization
+        results = {
+            'success': True,
+            'target': target,
+            'results': {
+                'optimization_score': 87.3,
+                'suggestions': [
+                    'Consider reducing molecular weight by 10-15%',
+                    'Increase oxygen balance for better performance',
+                    'Optimize crystal packing for density improvement'
+                ],
+                'predicted_improvement': '12-18%'
             }
-            return jsonify(results)
+        }
         
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/predict_toxicity', methods=['POST'])
-@track_performance
-def predict_toxicity_endpoint():
-    """Toxicity prediction endpoint using IAM_ToxicityPredictor"""
-    try:
-        data = request.get_json()
-        mol_data = data.get('mol_data', '')
-        
-        if not mol_data:
-            return jsonify({'success': False, 'error': 'No molecular data provided'})
-        
-        # Use actual toxicity predictor if available
-        if TOXICITY_PREDICTOR_AVAILABLE:
-            try:
-                toxicity_results = predict_toxicity(mol_data)
-                
-                # Structure the response for the frontend
-                results = {
-                    'success': True,
-                    'results': {
-                        'toxicity_level': toxicity_results.get('toxicity_level', 'N/A'),
-                        'ld50': toxicity_results.get('ld50', 'N/A'),
-                        'environmental_impact': toxicity_results.get('environmental_impact', 'N/A'),
-                        'safety_recommendations': toxicity_results.get('safety_recommendations', 'Use appropriate safety measures'),
-                        'method': toxicity_results.get('method', 'Advanced Toxicity Prediction')
-                    }
-                }
-                
-                return jsonify(results)
-                
-            except Exception as e:
-                print(f"Toxicity prediction error: {e}")
-                # Fallback to simulated results
-                results = {
-                    'success': True,
-                    'results': {
-                        'toxicity_level': 'N/A',
-                        'ld50': 'N/A',
-                        'environmental_impact': 'N/A',
-                        'safety_recommendations': 'Error in toxicity analysis',
-                        'error': str(e)
-                    }
-                }
-                return jsonify(results)
-        else:
-            # Toxicity predictor not available
-            results = {
-                'success': False,
-                'error': 'Toxicity Predictor module not available. Please ensure IAM_Knowledge is properly installed.'
-            }
-            return jsonify(results)
+        return jsonify(results)
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -1339,140 +1031,48 @@ def physical_chemistry():
     except Exception as e:
         return f"<h1>Physical Chemistry</h1><p>Feature under development. Error: {str(e)}</p>", 500
 
-# Molecular conversion endpoints
-@app.route('/molfile_to_xyz', methods=['POST'])
-@track_performance
-def molfile_to_xyz():
-    """Convert molfile to XYZ format"""
-    try:
-        data = request.get_json()
-        molfile = data.get('molfile', '')
-        
-        if not molfile:
-            return jsonify({'success': False, 'error': 'No molfile provided'})
-        
-        # Convert molfile to XYZ
-        xyz_data = molblock_to_xyz(molfile)
-        
-        if xyz_data:
-            # Extract basic molecule info
-            lines = xyz_data.strip().split('\n')
-            atom_count = int(lines[0]) if lines and lines[0].isdigit() else 0
-            
-            # Simple formula calculation
-            atoms = []
-            for line in lines[2:]:
-                if line.strip():
-                    atom = line.split()[0]
-                    atoms.append(atom)
-            
-            # Count atoms for formula
-            from collections import Counter
-            atom_counts = Counter(atoms)
-            formula = ''.join([f"{atom}{count if count > 1 else ''}" for atom, count in sorted(atom_counts.items())])
-            
-            return jsonify({
-                'success': True,
-                'xyz': xyz_data,
-                'molfile': molfile,
-                'formula': formula,
-                'atom_count': atom_count,
-                'bond_count': 'N/A'
-            })
-        else:
-            return jsonify({'success': False, 'error': 'Failed to convert molfile to XYZ'})
-            
-    except Exception as e:
-        logger.error(f"Molfile to XYZ conversion error: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)})
+# Duplicate function removed - using the one at line 719
 
-@app.route('/smiles_to_xyz', methods=['POST'])
-@track_performance
-def smiles_to_xyz():
-    """Convert SMILES to XYZ format"""
-    try:
-        data = request.get_json()
-        smiles = data.get('smiles', '')
-        
-        if not smiles:
-            return jsonify({'success': False, 'error': 'No SMILES provided'})
-        
-        # Try to convert using RDKit
-        if RDKIT_AVAILABLE:
-            mol = Chem.MolFromSmiles(smiles)
-            if mol is None:
-                return jsonify({'success': False, 'error': 'Invalid SMILES string'})
-            
-            # Add hydrogens and generate 3D coordinates
-            mol = Chem.AddHs(mol)
-            AllChem.EmbedMolecule(mol, randomSeed=42)
-            AllChem.MMFFOptimizeMolecule(mol)
-            
-            # Convert to XYZ
-            conf = mol.GetConformer()
-            xyz_lines = [str(mol.GetNumAtoms()), "Generated from SMILES"]
-            
-            for i in range(mol.GetNumAtoms()):
-                atom = mol.GetAtomWithIdx(i)
-                pos = conf.GetAtomPosition(i)
-                xyz_lines.append(f"{atom.GetSymbol():2s} {pos.x:12.6f} {pos.y:12.6f} {pos.z:12.6f}")
-            
-            xyz_data = '\n'.join(xyz_lines)
-            
-            # Get molecular formula
-            from rdkit.Chem import rdMolDescriptors
-            formula = rdMolDescriptors.CalcMolFormula(mol)
-            
-            return jsonify({
-                'success': True,
-                'xyz': xyz_data,
-                'smiles': smiles,
-                'formula': formula,
-                'atom_count': mol.GetNumAtoms(),
-                'bond_count': mol.GetNumBonds()
-            })
-        else:
-            return jsonify({'success': False, 'error': 'RDKit not available for SMILES conversion'})
-            
-    except Exception as e:
-        logger.error(f"SMILES to XYZ conversion error: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)})
+@app.route('/predict_vod', methods=['POST'])
+def predict_vod_route():  # Renamed to avoid conflict with imported function
+    data = request.get_json()
+    xyz = data.get('xyz', '')
+    result = predict_vod(xyz)  # Call with xyz parameter 
+    return jsonify({'result': result})
 
-@app.route('/write_file', methods=['POST'])
-@track_performance
-def write_file():
-    """Write content to a file"""
+@app.route('/optimize_performance', methods=['POST'])
+def optimize_performance():
+    data = request.get_json()
+    xyz = data.get('xyz', '')
+    target_properties = data.get('target_properties', None)
+    
     try:
-        data = request.get_json()
-        filename = data.get('filename', '')
-        content = data.get('content', '')
-        directory = data.get('directory', 'IAM_Results')
-        
-        if not filename:
-            return jsonify({'success': False, 'error': 'No filename provided'})
-        
-        # Ensure safe file path
-        import os
-        safe_dir = os.path.join(os.path.dirname(__file__), '..', directory)
-        safe_dir = os.path.abspath(safe_dir)
-        
-        # Create directory if it doesn't exist
-        os.makedirs(safe_dir, exist_ok=True)
-        
-        # Write file
-        file_path = os.path.join(safe_dir, filename)
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(content)
-        
-        return jsonify({
-            'success': True,
-            'file_path': file_path,
-            'message': f'File written successfully to {filename}'
-        })
-        
+        from IAM_Knowledge.performance_optimization import optimize_explosive_performance
+        result = optimize_explosive_performance(xyz, target_properties)
+        return jsonify({'result': result})
     except Exception as e:
-        logger.error(f"File write error: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({'error': str(e), 'result': 'Performance optimization failed'}), 500
+
+@app.route('/generate_report', methods=['POST'])
+def generate_report():
+    data = request.get_json()
+    xyz = data.get('xyz', '')
+    stability = predict_stability_logic(xyz)
+    vod = predict_vod(xyz)
+    
+    # Add performance optimization to comprehensive report
+    try:
+        from IAM_Knowledge.performance_optimization import optimize_explosive_performance
+        performance_opt = optimize_explosive_performance(xyz)
+    except Exception:
+        performance_opt = {"error": "Performance optimization unavailable"}
+    
+    report = {
+        'stability': stability,
+        'vod': vod,
+        'performance_optimization': performance_opt
+    }
+    return jsonify({'result': report})
 
 # Agent communication endpoints
 @app.route('/send_agent_command', methods=['POST'])
@@ -1541,9 +1141,9 @@ def load_molecule():
 
 # Import des modules nécessaires (avec gestion d'erreur)
 try:
-    from IAM_Knowledge.IAM_StabilityPredictor import predict_stability_logic as stability_predictor
+    from IAM_Knowledge.IAM_StabilityPredictor import predict_stability_logic
 except ImportError:
-    def stability_predictor(xyz_data):
+    def predict_stability_logic(xyz):
         return {"stability": "Module not available", "method": "placeholder"}
 
 # Import physical chemistry modules
@@ -1565,9 +1165,9 @@ except ImportError as e:
     PHYSICAL_CHEMISTRY_AVAILABLE = False
 
 try:
-    from IAM_Knowledge.IAM_VoD_Predictor import predict_vod as vod_predictor
+    from IAM_Knowledge.IAM_VoD_Predictor import predict_vod
 except ImportError:
-    def vod_predictor(xyz_data):
+    def predict_vod(xyz):
         return {"vod": "Module not available", "method": "placeholder"}
 
 # ==============================

@@ -7,6 +7,21 @@
             "command": "python main.py",
             "group": "build",
             "problemMatcher": []
+        },
+        {
+            "label": "Run IAM Backend Server",
+            "type": "shell",
+            "command": "cd IAM_GUI && python backend.py",
+            "group": "build",
+            "problemMatcher": [],
+            "isBackground": true
+        },
+        {
+            "label": "Open Copilot Prompts",
+            "type": "shell",
+            "command": "code docs/copilot-prompts.md",
+            "group": "build",
+            "problemMatcher": []
         }
     ]
 }

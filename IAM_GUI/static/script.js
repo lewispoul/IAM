@@ -1,597 +1,780 @@
-document.addEventListener("DOMContentLoaded", function () {
-    console.log('DOMContentLoaded fired, DOM is ready.');
+// ==========================================================================
+// Professional IAM Platform JavaScript
+// Modern Interface with Glass Morphism & Enhanced UX
+// ==========================================================================
 
-    // Tab switching
-    function showTab(tabName) {
-        document.querySelectorAll('.tab-content').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        document.querySelectorAll('.tab-button').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        if (document.getElementById(tabName)) {
-            document.getElementById(tabName).classList.add('active');
-        }
-        if (tabName === 'summary' && document.getElementById('tabSummaryBtn')) document.getElementById('tabSummaryBtn').classList.add('active');
-        if (tabName === 'input' && document.getElementById('tabInputBtn')) document.getElementById('tabInputBtn').classList.add('active');
-        if (tabName === 'output' && document.getElementById('tabOutputBtn')) document.getElementById('tabOutputBtn').classList.add('active');
+// Global variables and state management
+let currentViewer = null;
+let currentMolecule = null;
+let ketcherInstance = null;
+let currentTab = 'summary';
+let isDarkMode = false;
+let isCalculating = false;
+
+// DOM Elements - Professional Interface
+const elements = {
+    darkModeToggle: null,
+    ketcherFrame: null,
+    getStructureBtn: null,
+    clearStructureBtn: null,
+    smilesInput: null,
+    xyzTextarea: null,
+    fileInput: null,
+    chargeInput: null,
+    multiplicitySelect: null,
+    runAnalysisBtn: null,
+    clearAllBtn: null,
+    exportResultsBtn: null,
+    viewer: null,
+    viewerControls: null,
+    tabButtons: null,
+    tabContents: null,
+    summaryOutput: null,
+    computationalOutput: null,
+    performanceOutput: null,
+    orbitalsOutput: null,
+    aiAgentOutput: null,
+    toolsOutput: null,
+    loadingOverlay: null,
+    loadingMessage: null,
+    toastContainer: null
+};
+
+// ==========================================================================
+// Initialization and DOM Ready
+// ==========================================================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Initializing Professional IAM Interface...');
+    
+    initializeDOMElements();
+    initializeDarkMode();
+    initializeViewer();
+    initializeTabs();
+    initializeEventListeners();
+    initializeTooltips();
+    initializeKetcher();
+    
+    console.log('✅ Professional IAM Interface initialized successfully');
+    showToast('Welcome to IAM Platform', 'Professional molecular analysis interface loaded successfully', 'success');
+});
+
+function initializeDOMElements() {
+    elements.darkModeToggle = document.getElementById('darkModeToggle');
+    elements.ketcherFrame = document.getElementById('ketcherFrame');
+    elements.getStructureBtn = document.getElementById('getStructureBtn');
+    elements.clearStructureBtn = document.getElementById('clearStructureBtn');
+    elements.smilesInput = document.getElementById('smilesInput');
+    elements.xyzTextarea = document.getElementById('xyzTextarea');
+    elements.fileInput = document.getElementById('fileInput');
+    elements.chargeInput = document.getElementById('chargeInput');
+    elements.multiplicitySelect = document.getElementById('multiplicitySelect');
+    elements.runAnalysisBtn = document.getElementById('runAnalysisBtn');
+    elements.clearAllBtn = document.getElementById('clearAllBtn');
+    elements.exportResultsBtn = document.getElementById('exportResultsBtn');
+    elements.viewer = document.getElementById('viewer');
+    elements.viewerControls = document.querySelectorAll('.viewer-control');
+    elements.tabButtons = document.querySelectorAll('.professional-tabs .nav-link');
+    elements.tabContents = document.querySelectorAll('.tab-panel');
+    elements.summaryOutput = document.getElementById('summaryOutput');
+    elements.computationalOutput = document.getElementById('computationalOutput');
+    elements.performanceOutput = document.getElementById('performanceOutput');
+    elements.orbitalsOutput = document.getElementById('orbitalsOutput');
+    elements.aiAgentOutput = document.getElementById('aiAgentOutput');
+    elements.toolsOutput = document.getElementById('toolsOutput');
+    elements.loadingOverlay = document.getElementById('loadingOverlay');
+    elements.loadingMessage = document.getElementById('loadingMessage');
+    elements.toastContainer = document.getElementById('toastContainer');
+    console.log('📋 DOM elements initialized');
+}
+
+// ==========================================================================
+// Dark Mode Implementation
+// ==========================================================================
+
+function initializeDarkMode() {
+    const savedTheme = localStorage.getItem('iam-theme');
+    if (savedTheme) {
+        isDarkMode = savedTheme === 'dark';
+        applyTheme();
+    } else {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        isDarkMode = prefersDark;
+        applyTheme();
     }
+    
+    if (elements.darkModeToggle) {
+        elements.darkModeToggle.checked = isDarkMode;
+    }
+    
+    console.log(`🌙 Theme initialized: ${isDarkMode ? 'Dark' : 'Light'} mode`);
+}
 
-    // --- Improved showTab for IAM Tools and all custom tabs ---
-    function showTab(id) {
-        // Hide all tab contents
-        document.querySelectorAll('.tab-content').forEach(div => {
-            div.style.display = 'none';
+function toggleDarkMode() {
+    isDarkMode = !isDarkMode;
+    applyTheme();
+    localStorage.setItem('iam-theme', isDarkMode ? 'dark' : 'light');
+    
+    document.body.style.transition = 'background 0.3s ease-in-out, color 0.3s ease-in-out';
+    setTimeout(() => {
+        document.body.style.transition = '';
+    }, 300);
+    
+    console.log(`🌙 Theme toggled to: ${isDarkMode ? 'Dark' : 'Light'} mode`);
+}
+
+function applyTheme() {
+    if (isDarkMode) {
+        document.body.classList.add('dark-mode');
+    } else {
+        document.body.classList.remove('dark-mode');
+    }
+}
+
+// ==========================================================================
+// 3D Molecular Viewer (3Dmol.js)
+// ==========================================================================
+
+function initializeViewer() {
+    if (!elements.viewer) {
+        console.warn('⚠️ 3D Viewer element not found');
+        return;
+    }
+    
+    try {
+        currentViewer = $3Dmol.createViewer(elements.viewer, {
+            defaultcolors: $3Dmol.rasmolElementColors
         });
+        
+        currentViewer.setBackgroundColor(0xffffff, 0.0);
+        currentViewer.render();
+        
+        console.log('🧬 3D Viewer initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize 3D viewer:', error);
+        showToast('Viewer Error', 'Failed to initialize 3D molecular viewer', 'danger');
+    }
+}
 
-        // Remove 'active' class from all tab buttons
-        document.querySelectorAll('.tab-button').forEach(button => {
-            button.classList.remove('active');
+function renderMolecule(xyzData, format = 'xyz') {
+    if (!currentViewer) {
+        console.warn('⚠️ 3D Viewer not initialized');
+        return;
+    }
+    
+    try {
+        currentViewer.clear();
+        
+        if (xyzData && xyzData.trim()) {
+            const model = currentViewer.addModel(xyzData, format);
+            
+            currentViewer.setStyle({}, {
+                stick: {
+                    radius: 0.15,
+                    colorscheme: 'Jmol'
+                },
+                sphere: {
+                    radius: 0.3,
+                    colorscheme: 'Jmol'
+                }
+            });
+            
+            currentViewer.zoomTo();
+            currentViewer.render();
+            
+            currentMolecule = xyzData;
+            
+            console.log('🧬 Molecule rendered successfully');
+            showToast('Molecule Loaded', 'Structure rendered in 3D viewer', 'success');
+        }
+    } catch (error) {
+        console.error('❌ Failed to render molecule:', error);
+        showToast('Render Error', 'Failed to render molecular structure', 'danger');
+    }
+}
+
+function resetViewer() {
+    if (currentViewer) {
+        currentViewer.clear();
+        currentViewer.render();
+        currentMolecule = null;
+        console.log('🧬 3D Viewer reset');
+    }
+}
+
+function centerMolecule() {
+    if (currentViewer && currentMolecule) {
+        currentViewer.zoomTo();
+        currentViewer.render();
+    }
+}
+
+function toggleStyle() {
+    if (!currentViewer || !currentMolecule) return;
+    
+    const currentStyle = currentViewer.getModel(0).getStyle();
+    
+    if (currentStyle.stick) {
+        currentViewer.setStyle({}, {
+            sphere: { radius: 0.3, colorscheme: 'Jmol' },
+            stick: { radius: 0.15, colorscheme: 'Jmol' }
         });
+    } else {
+        currentViewer.setStyle({}, {
+            stick: { radius: 0.2, colorscheme: 'Jmol' }
+        });
+    }
+    
+    currentViewer.render();
+}
 
-        // Show the selected tab
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'block';
+function exportImage() {
+    if (currentViewer && currentMolecule) {
+        const imageData = currentViewer.pngURI();
+        const link = document.createElement('a');
+        link.download = 'molecule.png';
+        link.href = imageData;
+        link.click();
+        
+        showToast('Image Exported', 'Molecular structure image saved', 'success');
+    }
+}
 
-        // Add 'active' class to the clicked button
-        const button = Array.from(document.querySelectorAll('.tab-button')).find(btn => btn.onclick?.toString().includes(id));
-        if (button) {
+// ==========================================================================
+// Professional Tab System
+// ==========================================================================
+
+function initializeTabs() {
+    elements.tabButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const targetTab = this.getAttribute('data-tab');
+            switchTab(targetTab);
+        });
+    });
+    
+    switchTab('summary');
+    console.log('📑 Professional tabs initialized');
+}
+
+function switchTab(tabName) {
+    if (currentTab === tabName) return;
+    
+    elements.tabButtons.forEach(button => {
+        if (button.getAttribute('data-tab') === tabName) {
             button.classList.add('active');
-        }
-    }
-
-    // Attach tab button listeners if elements exist
-    if (document.getElementById('tabSummaryBtn')) document.getElementById('tabSummaryBtn').addEventListener('click', function() { showTab('summary'); });
-    if (document.getElementById('tabInputBtn')) document.getElementById('tabInputBtn').addEventListener('click', function() { showTab('input'); });
-    if (document.getElementById('tabOutputBtn')) document.getElementById('tabOutputBtn').addEventListener('click', function() { showTab('output'); });
-
-    // --- Helper: Detect file format and render in 3Dmol.js ---
-    // Enhanced rendering logic
-    function renderMoleculeAuto(contents) {
-        const trimmed = contents.trim();
-        let type = null;
-        if (/^\d+\s*\n/.test(trimmed)) {
-            type = 'xyz';
-        } else if (/V2000|V3000/.test(trimmed)) {
-            type = 'mol';
-        }
-        const viewerDiv = document.getElementById("viewer");
-        if (!viewerDiv) {
-            alert('3D viewer element (id="viewer") not found in DOM.');
-            return;
-        }
-        let viewer;
-        try {
-            viewer = $3Dmol.createViewer(viewerDiv, { backgroundColor: "white" });
-        } catch (e) {
-            alert('3Dmol.js failed to initialize: ' + e);
-            return;
-        }
-        if (type === 'xyz') {
-            viewer.addModel(trimmed, "xyz");
-            viewer.setStyle({}, { stick: {} });
-            viewer.zoomTo();
-            viewer.render();
-        } else if (type === 'mol') {
-            fetch('/molfile_to_xyz', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ molfile: trimmed })
-            })
-            .then(async r => {
-                let data;
-                try { data = await r.json(); } catch (jsonErr) {
-                    alert('Server error: Invalid JSON response');
-                    throw jsonErr;
-                }
-                if (!r.ok || !data.success || !data.xyz) {
-                    alert('Failed to convert MOL to 3D preview: ' + (data && (data.error || data.details) ? (data.error || data.details) : 'Unknown error'));
-                    return;
-                }
-                viewer.addModel(data.xyz, "xyz");
-                viewer.setStyle({}, { stick: {} });
-                viewer.zoomTo();
-                viewer.render();
-            })
-            .catch(err => {
-                alert('Network or server error: ' + err.message);
-            });
         } else {
-            // Show error in UI
-            if (document.getElementById('summaryContent')) {
-                document.getElementById('summaryContent').innerHTML = '<span style="color:#b00;">Error: Unsupported file format for preview.</span>';
-            }
-            // Optionally show toast or alert
-            if (window.showToastMsg) {
-                showToastMsg('Unsupported file format for preview.', true);
-            } else {
-                alert('Unsupported file format for preview.');
-            }
+            button.classList.remove('active');
         }
-    }
+    });
+    
+    elements.tabContents.forEach(content => {
+        if (content.id === `${tabName}Tab`) {
+            content.classList.add('active');
+            content.style.display = 'block';
+        } else {
+            content.classList.remove('active');
+            content.style.display = 'none';
+        }
+    });
+    
+    currentTab = tabName;
+    console.log(`📑 Switched to tab: ${tabName}`);
+}
 
-    // 3D Viewer rendering
-    function renderMolecule(contents) {
-        const viewerDiv = document.getElementById("viewer");
-        if (!viewerDiv) {
-            alert('3D viewer element (id="viewer") not found in DOM.');
-            return;
-        }
-        let viewer;
+// ==========================================================================
+// Ketcher Integration
+// ==========================================================================
+
+function initializeKetcher() {
+    if (!elements.ketcherFrame) {
+        console.warn('⚠️ Ketcher frame not found');
+        return;
+    }
+    
+    elements.ketcherFrame.onload = function() {
         try {
-            viewer = $3Dmol.createViewer(viewerDiv, { backgroundColor: "white" });
-        } catch (e) {
-            alert('3Dmol.js failed to initialize: ' + e);
-            return;
+            const ketcherWindow = elements.ketcherFrame.contentWindow;
+            if (ketcherWindow && ketcherWindow.ketcher) {
+                ketcherInstance = ketcherWindow.ketcher;
+                console.log('⚗️ Ketcher initialized successfully');
+            } else {
+                setTimeout(initializeKetcher, 1000);
+            }
+        } catch (error) {
+            console.warn('⚠️ Ketcher not yet ready, retrying...');
+            setTimeout(initializeKetcher, 1000);
         }
-        viewer.addModel(contents, "xyz");
-        viewer.setStyle({}, { stick: {} });
-        viewer.zoomTo();
-        viewer.render();
-    }
+    };
+}
 
-    // File upload to 3D viewer (auto-preview, robust)
-    if (document.getElementById('xyzFile')) {
-        document.getElementById('xyzFile').addEventListener('change', function (event) {
-            const file = event.target.files[0];
-            if (file && (file.name.endsWith('.xyz') || file.name.endsWith('.mol'))) {
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    try {
-                        renderMoleculeAuto(e.target.result);
-                        if (document.getElementById('summaryContent')) {
-                            document.getElementById('summaryContent').innerHTML = '<em>Preview loaded. Submit to run calculation.</em>';
-                        }
-                    } catch (err) {
-                        alert('Failed to render molecule: ' + err);
+async function getStructureFromKetcher() {
+    if (!ketcherInstance) {
+        showToast('Ketcher Error', 'Molecular sketcher not initialized', 'warning');
+        return null;
+    }
+    
+    try {
+        const smiles = await ketcherInstance.getSmiles();
+        if (smiles && smiles.trim()) {
+            console.log('⚗️ Structure obtained from Ketcher:', smiles);
+            return smiles;
+        } else {
+            showToast('No Structure', 'Please draw a molecule in the sketcher', 'warning');
+            return null;
+        }
+    } catch (error) {
+        console.error('❌ Failed to get structure from Ketcher:', error);
+        showToast('Ketcher Error', 'Failed to get molecular structure', 'danger');
+        return null;
+    }
+}
+
+function clearKetcher() {
+    if (ketcherInstance) {
+        try {
+            ketcherInstance.editor.clear();
+            console.log('⚗️ Ketcher structure cleared');
+        } catch (error) {
+            console.error('❌ Failed to clear Ketcher:', error);
+        }
+    }
+}
+
+// ==========================================================================
+// Event Listeners
+// ==========================================================================
+
+function initializeEventListeners() {
+    if (elements.darkModeToggle) {
+        elements.darkModeToggle.addEventListener('change', toggleDarkMode);
+    }
+    
+    if (elements.getStructureBtn) {
+        elements.getStructureBtn.addEventListener('click', async function() {
+            const smiles = await getStructureFromKetcher();
+            if (smiles && elements.smilesInput) {
+                elements.smilesInput.value = smiles;
+                convertSMILESToXYZ();
+            }
+        });
+    }
+    
+    if (elements.clearStructureBtn) {
+        elements.clearStructureBtn.addEventListener('click', clearKetcher);
+    }
+    
+    if (elements.smilesInput) {
+        elements.smilesInput.addEventListener('input', function() {
+            if (this.value.trim()) {
+                convertSMILESToXYZ();
+            }
+        });
+    }
+    
+    if (elements.xyzTextarea) {
+        elements.xyzTextarea.addEventListener('input', function() {
+            if (this.value.trim()) {
+                renderMolecule(this.value);
+            }
+        });
+    }
+    
+    if (elements.fileInput) {
+        elements.fileInput.addEventListener('change', handleFileUpload);
+    }
+    
+    if (elements.runAnalysisBtn) {
+        elements.runAnalysisBtn.addEventListener('click', runQuantumAnalysis);
+    }
+    
+    if (elements.clearAllBtn) {
+        elements.clearAllBtn.addEventListener('click', clearAll);
+    }
+    
+    if (elements.exportResultsBtn) {
+        elements.exportResultsBtn.addEventListener('click', exportResults);
+    }
+    
+    elements.viewerControls.forEach(control => {
+        control.addEventListener('click', function() {
+            const action = this.getAttribute('data-action');
+            switch(action) {
+                case 'center':
+                    centerMolecule();
+                    break;
+                case 'style':
+                    toggleStyle();
+                    break;
+                case 'export':
+                    exportImage();
+                    break;
+            }
+        });
+    });
+    
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey || e.metaKey) {
+            switch(e.key) {
+                case 'Enter':
+                    e.preventDefault();
+                    if (!isCalculating) {
+                        runQuantumAnalysis();
                     }
-                };
-                reader.readAsText(file);
+                    break;
+                case 'r':
+                    e.preventDefault();
+                    resetViewer();
+                    break;
+                case 'd':
+                    e.preventDefault();
+                    toggleDarkMode();
+                    break;
             }
-        });
-    }
-
-    // Paste and Import (XYZ/MOL) to 3D viewer (auto-preview, robust)
-    if (document.getElementById('loadFromPasteBtn')) {
-        document.getElementById('loadFromPasteBtn').addEventListener('click', function () {
-            const contents = document.getElementById('xyzPaste').value.trim();
-            if (!contents) {
-                alert('Please paste .xyz or .mol content.');
-                return;
-            }
-            try {
-                renderMoleculeAuto(contents);
-                if (document.getElementById('summaryContent')) {
-                    document.getElementById('summaryContent').innerHTML = '<em>Preview loaded. Submit to run calculation.</em>';
-                }
-            } catch (err) {
-                alert('Failed to render molecule: ' + err);
-            }
-        });
-    }
-
-    // Submit job
-    // Enhanced event listeners
-    if (document.getElementById('launchIAMBtn')) {
-        document.getElementById('launchIAMBtn').addEventListener('click', async function () {
-            const fileInput = document.getElementById('xyzFile');
-            const pasteInput = document.getElementById('xyzPaste').value.trim();
-            let formData = new FormData();
-            if (fileInput.files.length) {
-                formData.append('file', fileInput.files[0]);
-            } else if (pasteInput) {
-                const blob = new Blob([pasteInput], { type: 'text/plain' });
-                formData.append('file', blob, 'pasted.xyz');
-            } else {
-                alert('Please select a file or paste content.');
-                return;
-            }
-            try {
-                const response = await fetch('/run_xtb', {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
-                if (result.xyz) {
-                    renderMolecule(result.xyz);
-                } else {
-                    alert('No geometry returned from backend.');
-                }
-            } catch (error) {
-                alert('Error submitting job: ' + error.message);
-            }
-        });
-    }
-
-    // Load molecule from SMILES input and render in 3D viewer
-    if (document.getElementById('loadFromSMILESBtn')) {
-        document.getElementById('loadFromSMILESBtn').addEventListener('click', async function () {
-            const smiles = document.getElementById('smilesInput').value.trim();
-            if (!smiles) {
-                alert('Please enter a SMILES string.');
-                return;
-            }
-            // Call backend to convert SMILES to XYZ
-            const response = await fetch('/smiles_to_xyz', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ smiles })
-            });
-            const data = await response.json();
-            if (data.success && data.xyz) {
-                renderMolecule(data.xyz);
-            } else {
-                alert('Failed to convert SMILES to 3D structure.');
-            }
-        });
-    }
-
-    // Ketcher/Sketcher integration: render in 3D viewer after backend conversion (robust, with timeout)
-    if (document.getElementById('loadFromKetcherBtn')) {
-        document.getElementById('loadFromKetcherBtn').addEventListener('click', async function () {
-            const ketcherFrame = document.getElementById('ketcherFrame');
-            if (!ketcherFrame) {
-                alert('Ketcher iframe not found.');
-                return;
-            }
-            const ketcher = ketcherFrame.contentWindow;
-            if (!ketcher) {
-                alert('Ketcher not loaded.');
-                return;
-            }
-            let replied = false;
-            const TIMEOUT_MS = 3000;
-            function handler(event) {
-                // Only accept messages from the same origin and from the correct iframe
-                if (event.source !== ketcherFrame.contentWindow) return;
-                if (event.origin !== window.location.origin) return;
-                if (event.data && event.data.type === 'molfile') {
-                    replied = true;
-                    window.removeEventListener('message', handler);
-                    const molfile = event.data.molfile;
-                    if (!molfile) {
-                        alert('No molecule in sketcher.');
-                        return;
-                    }
-                    // Convert MOL to XYZ for 3D preview
-                    fetch('/molfile_to_xyz', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ molfile })
-                    })
-                    .then(async r => {
-                        let data;
-                        try { data = await r.json(); } catch (jsonErr) {
-                            alert('Server error: Invalid JSON response');
-                            throw jsonErr;
-                        }
-                        if (!r.ok || !data.success || !data.xyz) {
-                            alert('Failed to convert MOL to 3D preview: ' + (data && (data.error || data.details) ? (data.error || data.details) : 'Unknown error'));
-                            return;
-                        }
-                        renderMoleculeAuto(data.xyz);
-                        if (document.getElementById('summaryContent')) {
-                            document.getElementById('summaryContent').innerHTML = '<em>Preview loaded. Submit to run calculation.</em>';
-                        }
-                    })
-                    .catch(err => {
-                        alert('Network or server error: ' + err.message);
-                    });
-                }
-            }
-            window.addEventListener('message', handler);
-            // Send request to Ketcher for molfile
-            ketcherFrame.contentWindow.postMessage({ type: 'get-molfile' }, window.location.origin);
-            // Timeout if no response
-            setTimeout(() => {
-                if (!replied) {
-                    window.removeEventListener('message', handler);
-                    alert('Error: No response from Ketcher sketcher. Is it loaded and same-origin?');
-                }
-            }, TIMEOUT_MS);
-        });
-    }
-
-    // Search molecule placeholder
-    if (document.getElementById('searchMoleculeBtn')) {
-        document.getElementById('searchMoleculeBtn').addEventListener('click', function () {
-            alert('Search functionality not implemented yet.');
-        });
-    }
-
-    // Ajout de la gestion du mode sombre
-    const darkModeSwitch = document.getElementById('darkModeSwitch');
-    if (darkModeSwitch) {
-        darkModeSwitch.addEventListener('change', function () {
-            document.body.classList.toggle('dark-mode', darkModeSwitch.checked);
-            localStorage.setItem('darkMode', darkModeSwitch.checked ? 'enabled' : 'disabled');
-        });
-
-        // Charger l'état du mode sombre depuis le stockage local
-        const darkModeState = localStorage.getItem('darkMode');
-        if (darkModeState === 'enabled') {
-            darkModeSwitch.checked = true;
-            document.body.classList.add('dark-mode');
         }
-    }
+    });
+    
+    console.log('🎯 Event listeners initialized');
+}
 
-    // Gestion des boutons Optimize Structure in 3D et Draw Point Group Elements
+// ==========================================================================
+// File Upload Handler
+// ==========================================================================
 
-    document.getElementById('optimize3D').addEventListener('click', async function () {
-        const viewerDiv = document.getElementById('viewer');
-        const xyzData = viewerDiv.dataset.xyz || ''; // Récupérer les données XYZ du viewer
-        if (!xyzData) {
-            showErrorModal('No structure loaded in viewer.');
-            return;
-        }
-        showSpinner();
+function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        const content = e.target.result;
+        const extension = file.name.split('.').pop().toLowerCase();
+        
         try {
-            const response = await fetch('/run_xtb', {
-                method: 'POST',
-                body: JSON.stringify({ xyz: xyzData }),
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const result = await response.json();
-            if (result.success) {
-                updateViewer(result.xyz);
-                updateSummary(result.xtb_json);
+            if (extension === 'xyz') {
+                elements.xyzTextarea.value = content;
+                renderMolecule(content);
+                showToast('File Loaded', `XYZ file "${file.name}" loaded successfully`, 'success');
+            } else if (extension === 'mol' || extension === 'sdf') {
+                convertMOLToXYZ(content);
             } else {
-                showErrorModal(result.error);
+                showToast('Unsupported Format', 'Please upload XYZ, MOL, or SDF files', 'warning');
             }
         } catch (error) {
-            showErrorModal(error.message);
-        } finally {
-            hideSpinner();
+            console.error('❌ File upload error:', error);
+            showToast('Upload Error', 'Failed to process uploaded file', 'danger');
         }
-    });
+    };
+    
+    reader.readAsText(file);
+}
 
-    document.getElementById('drawPointGroup').addEventListener('click', async function () {
-        const viewerDiv = document.getElementById('viewer');
-        const xyzData = viewerDiv.dataset.xyz || ''; // Récupérer les données XYZ du viewer
-        if (!xyzData) {
-            showErrorModal('No structure loaded in viewer.');
-            return;
-        }
-        showSpinner();
-        try {
-            const response = await fetch('/compute_symmetry', {
-                method: 'POST',
-                body: JSON.stringify({ xyz: xyzData }),
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const result = await response.json();
-            if (result.success) {
-                updateSummary({ symmetry: result.symmetry });
-            } else {
-                showErrorModal(result.error);
-            }
-        } catch (error) {
-            showErrorModal(error.message);
-        } finally {
-            hideSpinner();
-        }
-    });
+// ==========================================================================
+// API Communication Functions
+// ==========================================================================
 
-    // Gestion du panneau IAM Tools
-
-    document.getElementById('predictStability').addEventListener('click', async function () {
-        const smiles = document.getElementById('smilesInput').value;
-        if (!smiles) {
-            showErrorModal('Please enter SMILES or MOL data.');
-            return;
-        }
-        showSpinner();
-        try {
-            const response = await fetch('/predict_stability', {
-                method: 'POST',
-                body: JSON.stringify({ smiles }),
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const result = await response.json();
-            if (result.success) {
-                updateIAMToolsOutput(result.stability);
-            } else {
-                showErrorModal(result.error);
-            }
-        } catch (error) {
-            showErrorModal(error.message);
-        } finally {
-            hideSpinner();
-        }
-    });
-
-    document.getElementById('predictVoD').addEventListener('click', async function () {
-        const smiles = document.getElementById('smilesInput').value;
-        if (!smiles) {
-            showErrorModal('Please enter SMILES or MOL data.');
-            return;
-        }
-        showSpinner();
-        try {
-            const response = await fetch('/predict_vod', {
-                method: 'POST',
-                body: JSON.stringify({ smiles }),
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const result = await response.json();
-            if (result.success) {
-                updateIAMToolsOutput(result.vod);
-            } else {
-                showErrorModal(result.error);
-            }
-        } catch (error) {
-            showErrorModal(error.message);
-        } finally {
-            hideSpinner();
-        }
-    });
-
-    document.getElementById('generateReport').addEventListener('click', async function () {
-        const smiles = document.getElementById('smilesInput').value;
-        if (!smiles) {
-            showErrorModal('Please enter SMILES or MOL data.');
-            return;
-        }
-        showSpinner();
-        try {
-            const response = await fetch('/generate_report', {
-                method: 'POST',
-                body: JSON.stringify({ smiles }),
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const result = await response.json();
-            if (result.success) {
-                updateIAMToolsOutput(result.report);
-            } else {
-                showErrorModal(result.error);
-            }
-        } catch (error) {
-            showErrorModal(error.message);
-        } finally {
-            hideSpinner();
-        }
-    });
-
-    // Fonctions pour les boutons Predict Stability, Predict VoD, et Generate Report
-
-    async function predictStability() {
-        const viewerDiv = document.getElementById('viewer');
-        const xyzData = viewerDiv.dataset.xyz || ''; // Récupérer les données XYZ du viewer
-        if (!xyzData) {
-            showErrorModal('No structure loaded in viewer.');
-            return;
-        }
-        showSpinner();
-        try {
-            const response = await fetch('/predict_stability', {
-                method: 'POST',
-                body: JSON.stringify({ xyz: xyzData }),
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const result = await response.json();
-            if (result.result) {
-                document.getElementById('result-output').textContent = JSON.stringify(result.result, null, 2);
-            } else {
-                showErrorModal(result.error);
-            }
-        } catch (error) {
-            showErrorModal(error.message);
-        } finally {
-            hideSpinner();
-        }
-    }
-
-    async function predictVoD() {
-        const viewerDiv = document.getElementById('viewer');
-        const xyzData = viewerDiv.dataset.xyz || ''; // Récupérer les données XYZ du viewer
-        if (!xyzData) {
-            showErrorModal('No structure loaded in viewer.');
-            return;
-        }
-        showSpinner();
-        try {
-            const response = await fetch('/predict_vod', {
-                method: 'POST',
-                body: JSON.stringify({ xyz: xyzData }),
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const result = await response.json();
-            if (result.result) {
-                document.getElementById('result-output').textContent = JSON.stringify(result.result, null, 2);
-            } else {
-                showErrorModal(result.error);
-            }
-        } catch (error) {
-            showErrorModal(error.message);
-        } finally {
-            hideSpinner();
-        }
-    }
-
-    async function generateReport() {
-        const viewerDiv = document.getElementById('viewer');
-        const xyzData = viewerDiv.dataset.xyz || ''; // Récupérer les données XYZ du viewer
-        if (!xyzData) {
-            showErrorModal('No structure loaded in viewer.');
-            return;
-        }
-        showSpinner();
-        try {
-            const response = await fetch('/generate_report', {
-                method: 'POST',
-                body: JSON.stringify({ xyz: xyzData }),
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const result = await response.json();
-            if (result.result) {
-                document.getElementById('result-output').textContent = JSON.stringify(result.result, null, 2);
-            } else {
-                showErrorModal(result.error);
-            }
-        } catch (error) {
-            showErrorModal(error.message);
-        } finally {
-            hideSpinner();
-        }
-    }
-
-    // Add event listeners for functional buttons
-
-    document.getElementById('resymmetrizeBtn').addEventListener('click', () => {
-        resymmetrizeStructure();
-    });
-
-    document.getElementById('drawSymmetryBtn').addEventListener('click', () => {
-        drawPointGroupElements();
-    });
-
-    document.getElementById('optimizeBtn').addEventListener('click', () => {
-        optimizeStructure3D();
-    });
-
-    document.getElementById('deleteHBtn').addEventListener('click', () => {
-        deleteAllHydrogens();
-    });
-
-    document.getElementById('saveStructBtn').addEventListener('click', () => {
-        saveStructureToFile();
-    });
-
-    // Define functions for button actions
-    function resymmetrizeStructure() {
-        console.log('Resymmetrizing structure...');
-        // Logic for resymmetrizing the structure
-    }
-
-    function drawPointGroupElements() {
-        console.log('Drawing point group elements...');
-        // Logic for drawing symmetry elements
-    }
-
-    function optimizeStructure3D() {
-        console.log('Optimizing structure in 3D...');
-        fetch('/run_xtb', {
+async function convertSMILESToXYZ() {
+    const smiles = elements.smilesInput.value.trim();
+    if (!smiles) return;
+    
+    try {
+        showLoading('Converting SMILES to 3D structure...');
+        
+        const response = await fetch('/convert_smiles_to_xyz', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ action: 'optimize' }),
-        })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Optimization result:', data);
-                // Update viewer with optimized structure
+            body: JSON.stringify({ smiles: smiles })
+        });
+        
+        const data = await response.json();
+        hideLoading();
+        
+        if (data.success && data.xyz) {
+            elements.xyzTextarea.value = data.xyz;
+            renderMolecule(data.xyz);
+            showToast('Conversion Success', 'SMILES converted to 3D structure', 'success');
+        } else {
+            showToast('Conversion Failed', data.error || 'Failed to convert SMILES', 'danger');
+        }
+    } catch (error) {
+        hideLoading();
+        console.error('❌ SMILES conversion error:', error);
+        showToast('Network Error', 'Failed to connect to conversion service', 'danger');
+    }
+}
+
+async function convertMOLToXYZ(molData) {
+    try {
+        showLoading('Converting MOL to XYZ format...');
+        
+        const response = await fetch('/convert_mol_to_xyz', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ mol_data: molData })
+        });
+        
+        const data = await response.json();
+        hideLoading();
+        
+        if (data.success && data.xyz) {
+            elements.xyzTextarea.value = data.xyz;
+            renderMolecule(data.xyz);
+            showToast('Conversion Success', 'MOL file converted to XYZ format', 'success');
+        } else {
+            showToast('Conversion Failed', data.error || 'Failed to convert MOL file', 'danger');
+        }
+    } catch (error) {
+        hideLoading();
+        console.error('❌ MOL conversion error:', error);
+        showToast('Network Error', 'Failed to connect to conversion service', 'danger');
+    }
+}
+
+async function runQuantumAnalysis() {
+    if (isCalculating) {
+        showToast('Analysis Running', 'Please wait for current calculation to complete', 'warning');
+        return;
+    }
+    
+    const xyz = elements.xyzTextarea.value.trim();
+    if (!xyz) {
+        showToast('No Structure', 'Please provide a molecular structure first', 'warning');
+        return;
+    }
+    
+    const charge = parseInt(elements.chargeInput.value) || 0;
+    const multiplicity = parseInt(elements.multiplicitySelect.value) || 1;
+    
+    try {
+        isCalculating = true;
+        showLoading('Running quantum chemical analysis...');
+        
+        elements.runAnalysisBtn.disabled = true;
+        elements.runAnalysisBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Analyzing...';
+        
+        const response = await fetch('/run_analysis', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                xyz: xyz,
+                charge: charge,
+                multiplicity: multiplicity
             })
-            .catch(error => console.error('Error optimizing structure:', error));
+        });
+        
+        const data = await response.json();
+        hideLoading();
+        
+        if (data.success) {
+            displayResults(data);
+            showToast('Analysis Complete', 'Quantum chemical analysis completed successfully', 'success');
+        } else {
+            showToast('Analysis Failed', data.error || 'Quantum analysis failed', 'danger');
+        }
+    } catch (error) {
+        hideLoading();
+        console.error('❌ Analysis error:', error);
+        showToast('Network Error', 'Failed to connect to analysis service', 'danger');
+    } finally {
+        isCalculating = false;
+        elements.runAnalysisBtn.disabled = false;
+        elements.runAnalysisBtn.innerHTML = '<i class="fas fa-play me-2"></i>Run Analysis';
     }
+}
 
-    function deleteAllHydrogens() {
-        console.log('Deleting all hydrogens...');
-        // Logic for removing hydrogen atoms from the viewer
-    }
+// ==========================================================================
+// Results Display
+// ==========================================================================
 
-    function saveStructureToFile() {
-        console.log('Saving structure to file...');
-        // Logic for exporting the structure and triggering a download
+function displayResults(data) {
+    if (elements.summaryOutput && data.summary) {
+        elements.summaryOutput.innerHTML = formatResults(data.summary, 'Molecular Summary');
     }
+    
+    if (elements.computationalOutput && data.computational) {
+        elements.computationalOutput.innerHTML = formatResults(data.computational, 'Computational Details');
+    }
+    
+    if (elements.performanceOutput && data.performance) {
+        elements.performanceOutput.innerHTML = formatResults(data.performance, 'Performance Metrics');
+    }
+    
+    if (elements.orbitalsOutput && data.orbitals) {
+        elements.orbitalsOutput.innerHTML = formatResults(data.orbitals, 'Molecular Orbitals');
+    }
+    
+    switchTab('summary');
+}
+
+function formatResults(data, title) {
+    return `
+        <div class="fade-in">
+            <h6><i class="fas fa-info-circle me-2"></i>${title}</h6>
+            <pre class="font-monospace">${JSON.stringify(data, null, 2)}</pre>
+        </div>
+    `;
+}
+
+// ==========================================================================
+// Utility Functions
+// ==========================================================================
+
+function clearAll() {
+    if (elements.smilesInput) elements.smilesInput.value = '';
+    if (elements.xyzTextarea) elements.xyzTextarea.value = '';
+    if (elements.fileInput) elements.fileInput.value = '';
+    if (elements.chargeInput) elements.chargeInput.value = '0';
+    if (elements.multiplicitySelect) elements.multiplicitySelect.value = '1';
+    
+    elements.tabContents.forEach(content => {
+        const output = content.querySelector('pre');
+        if (output) output.textContent = 'No results yet. Run an analysis to see output here.';
+    });
+    
+    resetViewer();
+    clearKetcher();
+    switchTab('summary');
+    
+    showToast('Interface Reset', 'All inputs and results cleared', 'info');
+    console.log('🧹 Interface cleared');
+}
+
+function exportResults() {
+    const results = {
+        timestamp: new Date().toISOString(),
+        inputs: {
+            smiles: elements.smilesInput?.value || '',
+            xyz: elements.xyzTextarea?.value || '',
+            charge: elements.chargeInput?.value || '0',
+            multiplicity: elements.multiplicitySelect?.value || '1'
+        },
+        outputs: {}
+    };
+    
+    elements.tabContents.forEach(content => {
+        const tabId = content.id.replace('Tab', '');
+        const output = content.querySelector('pre');
+        if (output && output.textContent !== 'No results yet. Run an analysis to see output here.') {
+            results.outputs[tabId] = output.textContent;
+        }
+    });
+    
+    const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `iam_results_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    
+    showToast('Results Exported', 'Analysis results saved to file', 'success');
+}
+
+// ==========================================================================
+// Loading Overlay
+// ==========================================================================
+
+function showLoading(message = 'Processing...') {
+    if (elements.loadingOverlay && elements.loadingMessage) {
+        elements.loadingMessage.textContent = message;
+        elements.loadingOverlay.style.display = 'flex';
+        elements.loadingOverlay.classList.add('fade-in');
+    }
+}
+
+function hideLoading() {
+    if (elements.loadingOverlay) {
+        elements.loadingOverlay.style.display = 'none';
+        elements.loadingOverlay.classList.remove('fade-in');
+    }
+}
+
+// ==========================================================================
+// Toast Notifications
+// ==========================================================================
+
+function showToast(title, message, type = 'info') {
+    if (!elements.toastContainer) return;
+    
+    const toastId = 'toast_' + Date.now();
+    const iconMap = {
+        success: 'fas fa-check-circle text-success',
+        danger: 'fas fa-exclamation-circle text-danger',
+        warning: 'fas fa-exclamation-triangle text-warning',
+        info: 'fas fa-info-circle text-primary'
+    };
+    
+    const toastHTML = `
+        <div id="${toastId}" class="toast align-items-center" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <div class="d-flex align-items-center">
+                        <i class="${iconMap[type]} me-2"></i>
+                        <div>
+                            <strong>${title}</strong><br>
+                            <small>${message}</small>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    `;
+    
+    elements.toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+    
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+    toast.show();
+    
+    toastElement.addEventListener('hidden.bs.toast', function() {
+        this.remove();
+    });
+}
+
+// ==========================================================================
+// Tooltips Initialization
+// ==========================================================================
+
+function initializeTooltips() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    console.log('💡 Tooltips initialized');
+}
+
+// ==========================================================================
+// Error Handling & Exports
+// ==========================================================================
+
+window.addEventListener('error', function(e) {
+    console.error('🚨 Global error:', e.error);
+    showToast('Application Error', 'An unexpected error occurred', 'danger');
 });
+
+window.addEventListener('unhandledrejection', function(e) {
+    console.error('🚨 Unhandled promise rejection:', e.reason);
+    showToast('Promise Error', 'An async operation failed', 'danger');
+});
+
+if (typeof window !== 'undefined') {
+    window.IAM = {
+        elements,
+        currentViewer,
+        currentMolecule,
+        ketcherInstance,
+        switchTab,
+        renderMolecule,
+        showToast,
+        version: '2.0.0-professional'
+    };
+}

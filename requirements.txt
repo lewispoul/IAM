@@ -1,33 +1,29 @@
+# Core Flask dependencies
 flask
 flask-cors
-rdkit
+
+# Scientific computing
 numpy
 scipy
 pandas
-jupyterlab
 matplotlib
-requests
-openai
-flask
-python-dotenv
-requests
+
+# Chemistry libraries
 rdkit-pypi
 py3Dmol
-numpy
-pandas
+
+# Machine Learning
 scikit-learn
 torch
 transformers
 
-openai
-flask
+# Environment and API
 python-dotenv
 requests
-rdkit-pypi
-py3Dmol
-numpy
-pandas
-matplotlib
-scikit-learn
-torch
-transformers
+openai
+
+# Development tools
+jupyterlab
+
+# System monitoring
+psutil
