@@ -4,6 +4,8 @@ Optimisation géométrique et calculs quantiques : Intégration automatisée d
 
 Génération et validation de structures 3D : Conversion SMILES/MOL vers XYZ à l’aide de RDKit et optimisation via UFF/ETKDG.
 
+<img width="1894" height="1521" alt="image" src="https://github.com/user-attachments/assets/bf05cd98-f605-436f-aac4-98803795e29e" />
+
 Visualisation 3D interactive : Affichage en temps réel des structures et résultats à travers une interface web moderne (3Dmol.js), accessible localement ou à distance.
 
 Prédiction de performances énergétiques : Modules internes pour la prédiction de la vitesse de détonation, pression de Chapman-Jouguet, enthalpie de formation/détonation, etc., basés à la fois sur des formules empiriques (Kamlet–Jacobs, Keshavarz) et sur l’apprentissage automatique (ML/IA).
@@ -234,4 +236,5 @@ Les fichiers temporaires, résultats, environnements virtuels sont automatiqueme
 *Votre assistant pour la chimie computationnelle, prêt à l’emploi !*
 
 ---
+
 
