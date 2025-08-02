@@ -4,7 +4,9 @@ Optimisation géométrique et calculs quantiques : Intégration automatisée d
 
 Génération et validation de structures 3D : Conversion SMILES/MOL vers XYZ à l’aide de RDKit et optimisation via UFF/ETKDG.
 
-<img width="1894" height="1521" alt="image" src="https://github.com/user-attachments/assets/bf05cd98-f605-436f-aac4-98803795e29e" />
+<img width="1894" height="1521" alt="image" src="https://github.com/user-attachments/assets/abb52697-cc14-443f-871f-53331cb8bbcd" />
+
+<img width="1048" height="1732" alt="image" src="https://github.com/user-attachments/assets/be775116-a996-4437-a49d-a7e8ed972a09" />
 
 Visualisation 3D interactive : Affichage en temps réel des structures et résultats à travers une interface web moderne (3Dmol.js), accessible localement ou à distance.
 
@@ -236,5 +238,6 @@ Les fichiers temporaires, résultats, environnements virtuels sont automatiqueme
 *Votre assistant pour la chimie computationnelle, prêt à l’emploi !*
 
 ---
+
 
 
