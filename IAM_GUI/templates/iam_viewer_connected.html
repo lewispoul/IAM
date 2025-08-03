@@ -83,7 +83,7 @@
 
                         <!-- Parameters Section -->
                         <div class="mb-4">
-                            <h6>Parameters</h6>
+                            <h6>Basic Parameters</h6>
                             <div class="row g-2">
                                 <div class="col-6">
                                     <label for="chargeInput" class="form-label">Charge</label>
@@ -100,10 +100,69 @@
                             </div>
                         </div>
 
+                        <!-- Quantum Mechanical Parameters Section -->
+                        <div class="mb-4">
+                            <h6><i class="bi bi-atom"></i> Quantum Parameters</h6>
+                            <div class="row g-2">
+                                <div class="col-12">
+                                    <label for="packageInput" class="form-label">Package</label>
+                                    <select id="packageInput" class="form-select">
+                                        <option value="xtb">XTB (Extended Tight Binding)</option>
+                                        <option value="psi4">Psi4 (DFT/HF)</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label for="calculationTypeInput" class="form-label">Calculation Type</label>
+                                    <select id="calculationTypeInput" class="form-select">
+                                        <option value="sp">Single Point</option>
+                                        <option value="opt" selected>Optimization</option>
+                                        <option value="freq">Frequency</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label for="basisSetInput" class="form-label">Basis Set</label>
+                                    <select id="basisSetInput" class="form-select">
+                                        <option value="def2-SVP" selected>def2-SVP</option>
+                                        <option value="def2-TZVP">def2-TZVP</option>
+                                        <option value="6-31G*">6-31G*</option>
+                                        <option value="cc-pVDZ">cc-pVDZ</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label for="functionalInput" class="form-label">DFT Functional</label>
+                                    <select id="functionalInput" class="form-select">
+                                        <option value="b3lyp" selected>B3LYP</option>
+                                        <option value="pbe0">PBE0</option>
+                                        <option value="m06-2x">M06-2X</option>
+                                        <option value="wb97x-d">wB97X-D</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <label class="form-label">Add-ons</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="addonOrbitals" value="orbitals">
+                                    <label class="form-check-label" for="addonOrbitals">Molecular Orbitals</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="addonIR" value="ir">
+                                    <label class="form-check-label" for="addonIR">IR Spectrum</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="addonUV" value="uv">
+                                    <label class="form-check-label" for="addonUV">UV-Vis</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="addonNMR" value="nmr">
+                                    <label class="form-check-label" for="addonNMR">NMR</label>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Run Analysis Button -->
-                        <button id="runAnalysisBtn" class="btn btn-primary w-100">
+                        <button id="runAnalysisBtn" class="btn btn-primary w-100" onclick="runQuantumCalculation()">
                             <span class="spinner-border spinner-border-sm d-none me-2" id="analysisSpinner"></span>
-                            <i class="bi bi-play-circle"></i> Run Analysis
+                            <i class="bi bi-play-circle"></i> Run Quantum Calculation
                         </button>
 
                         <!-- Error Message Display -->
@@ -174,6 +233,11 @@
                                     </button>
                                 </li>
                                 <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="vibrations-tab" data-bs-toggle="tab" data-bs-target="#vibrations" type="button" role="tab">
+                                        <i class="bi bi-soundwave"></i> Vibrations
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
                                     <button class="nav-link" id="ai-agent-tab" data-bs-toggle="tab" data-bs-target="#ai-agent" type="button" role="tab">
                                         <i class="bi bi-robot"></i> AI Agent
                                     </button>
@@ -236,9 +300,70 @@
                                 <!-- Orbitals Tab -->
                                 <div class="tab-pane fade" id="orbitals" role="tabpanel">
                                     <div id="orbitalsContent" class="results-container">
-                                        <div class="text-center text-muted py-4">
-                                            <i class="bi bi-diagram-3 fs-2"></i>
-                                            <p class="mt-2">Molecular orbital data will appear here.</p>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <h6>Orbital Controls</h6>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Orbital Type</label>
+                                                    <select id="orbital-type" class="form-select form-select-sm">
+                                                        <option value="homo">HOMO</option>
+                                                        <option value="lumo">LUMO</option>
+                                                        <option value="homo-1">HOMO-1</option>
+                                                        <option value="lumo+1">LUMO+1</option>
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Isosurface Value</label>
+                                                    <input type="range" id="cutoff-slider" class="form-range" min="0.01" max="0.1" step="0.01" value="0.03" onchange="updateCutoff()">
+                                                    <small class="text-muted">Value: <span id="cutoff-value">0.03</span></small>
+                                                </div>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="show-phase">
+                                                    <label class="form-check-label" for="show-phase">Show Phase</label>
+                                                </div>
+                                                <button class="btn btn-primary btn-sm mt-2" onclick="renderOrbital()">Render Orbital</button>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h6>Orbital Information</h6>
+                                                <div id="orbital-info">
+                                                    <p class="text-muted">Select an orbital to view information</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Vibrations Tab -->
+                                <div class="tab-pane fade" id="vibrations" role="tabpanel">
+                                    <div id="vibrationsContent" class="results-container">
+                                        <div class="row">
+                                            <div class="col-md-8">
+                                                <h6>Vibrational Frequencies</h6>
+                                                <div id="vibration-list">
+                                                    <div class="text-center text-muted py-4">
+                                                        <i class="bi bi-soundwave fs-2"></i>
+                                                        <p class="mt-2">Run frequency calculation to see vibrational modes.</p>
+                                                        <button class="btn btn-primary btn-sm" onclick="calculateVibrationalModes()">
+                                                            <i class="bi bi-play"></i> Calculate Frequencies
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <h6>Animation Controls</h6>
+                                                <div class="d-grid gap-2">
+                                                    <button class="btn btn-success btn-sm" onclick="animateVibration()">
+                                                        <i class="bi bi-play-circle"></i> Animate
+                                                    </button>
+                                                    <button class="btn btn-danger btn-sm" onclick="stopAnimation()">
+                                                        <i class="bi bi-stop-circle"></i> Stop
+                                                    </button>
+                                                    <div class="mt-3">
+                                                        <label class="form-label">Animation Speed</label>
+                                                        <input type="range" id="animation-speed" class="form-range" min="0.1" max="2.0" step="0.1" value="1.0">
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -784,6 +909,224 @@
         function hideError() {
             const errorDiv = document.getElementById('error-message');
             errorDiv.classList.add('d-none');
+        }
+
+        // Quantum Chemistry Functions
+        
+        // Calculate vibrational modes
+        function calculateVibrationalModes() {
+            if (!lastXyzString) {
+                showError('Please load a molecule first');
+                return;
+            }
+
+            const method = document.getElementById('packageInput').value;
+            const basis = document.getElementById('basisSetInput').value;
+            const charge = document.getElementById('chargeInput').value;
+            const multiplicity = document.getElementById('multiplicityInput').value;
+
+            fetch('/calculate_vibrational_modes', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    mol_data: lastXyzString,
+                    method: method,
+                    basis: basis,
+                    charge: charge,
+                    multiplicity: multiplicity
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayVibrationalResults(data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('Failed to calculate vibrational modes');
+            });
+        }
+
+        // Display vibrational results
+        function displayVibrationalResults(data) {
+            const vibrationList = document.getElementById('vibration-list');
+            
+            if (data.success && data.results) {
+                const frequencies = data.results.frequencies;
+                const intensities = data.results.intensities;
+                const units = data.results.units || {};
+                
+                let html = '<div class="table-responsive"><table class="table table-sm table-striped">';
+                html += '<thead><tr><th>Mode</th><th>Frequency</th><th>Intensity</th></tr></thead><tbody>';
+                
+                for (let i = 0; i < frequencies.length; i++) {
+                    html += `<tr>
+                        <td>${i + 1}</td>
+                        <td>${frequencies[i].toFixed(2)} ${units.frequencies || 'cm⁻¹'}</td>
+                        <td>${intensities[i].toFixed(2)} ${units.intensities || 'km/mol'}</td>
+                    </tr>`;
+                }
+                
+                html += '</tbody></table></div>';
+                html += `<div class="mt-3"><strong>Zero Point Energy:</strong> ${data.results.zero_point_energy.toFixed(4)} ${units.zero_point_energy || 'eV'}</div>`;
+                
+                vibrationList.innerHTML = html;
+                
+                // Switch to vibrations tab
+                document.getElementById('vibrations-tab').click();
+            } else {
+                vibrationList.innerHTML = `<div class="alert alert-danger">Error: ${data.error}</div>`;
+            }
+        }
+
+        // Render molecular orbital
+        function renderOrbital() {
+            const orbitalType = document.getElementById('orbital-type').value;
+            const showPhase = document.getElementById('show-phase').checked;
+            
+            // Mock job ID for demonstration - in practice this would come from a calculation
+            const jobId = 'demo_' + Date.now();
+            
+            fetch(`/get_cube/${jobId}/${orbitalType}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Display orbital information
+                    const orbitalInfo = document.getElementById('orbital-info');
+                    const metadata = data.metadata;
+                    
+                    let infoHtml = '<div class="card"><div class="card-body">';
+                    if (metadata && metadata.orbital_info) {
+                        const info = metadata.orbital_info;
+                        infoHtml += `<h6>${info.name}</h6>`;
+                        if (info.energy !== undefined) {
+                            infoHtml += `<p><strong>Energy:</strong> ${info.energy} eV</p>`;
+                        }
+                        if (info.symmetry) {
+                            infoHtml += `<p><strong>Symmetry:</strong> ${info.symmetry}</p>`;
+                        }
+                        if (info.occupancy !== undefined) {
+                            infoHtml += `<p><strong>Occupancy:</strong> ${info.occupancy}</p>`;
+                        }
+                        if (info.description) {
+                            infoHtml += `<p><strong>Description:</strong> ${info.description}</p>`;
+                        }
+                    }
+                    infoHtml += '</div></div>';
+                    
+                    orbitalInfo.innerHTML = infoHtml;
+                    
+                    // TODO: Parse and render cube data in 3D viewer
+                    console.log('Received cube data for', orbitalType);
+                } else {
+                    document.getElementById('orbital-info').innerHTML = `<div class="alert alert-warning">${data.error}</div>`;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading orbital:', error);
+                document.getElementById('orbital-info').innerHTML = '<div class="alert alert-danger">Failed to load orbital data</div>';
+            });
+        }
+
+        // Update cutoff value display
+        function updateCutoff() {
+            const cutoff = document.getElementById('cutoff-slider').value;
+            document.getElementById('cutoff-value').textContent = cutoff;
+        }
+
+        // Animation functions
+        function animateVibration() {
+            console.log('Starting vibration animation');
+            // TODO: Implement vibration animation
+        }
+
+        function stopAnimation() {
+            console.log('Stopping animation');
+            // TODO: Stop vibration animation
+        }
+
+        // Enhanced quantum calculation submission
+        function runQuantumCalculation() {
+            if (!lastXyzString) {
+                showError('Please load a molecule first');
+                return;
+            }
+
+            const formData = new FormData();
+            
+            // Create a temporary file with XYZ data
+            const blob = new Blob([lastXyzString], { type: 'text/plain' });
+            formData.append('file', blob, 'molecule.xyz');
+            
+            // Add parameters
+            formData.append('method', document.getElementById('packageInput').value);
+            formData.append('calcType', document.getElementById('calculationTypeInput').value);
+            formData.append('charge', document.getElementById('chargeInput').value);
+            formData.append('multiplicity', document.getElementById('multiplicityInput').value);
+            formData.append('basis', document.getElementById('basisSetInput').value);
+            formData.append('functional', document.getElementById('functionalInput').value);
+            
+            // Add selected add-ons
+            const addons = [];
+            if (document.getElementById('addonOrbitals').checked) addons.push('orbitals');
+            if (document.getElementById('addonIR').checked) addons.push('ir');
+            if (document.getElementById('addonUV').checked) addons.push('uv');
+            if (document.getElementById('addonNMR').checked) addons.push('nmr');
+            formData.append('addons', addons.join(','));
+
+            fetch('/run_quantum', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Quantum calculation completed:', data);
+                    // Update results display
+                    updateQuantumResults(data);
+                } else {
+                    showError('Quantum calculation failed: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('Failed to submit quantum calculation');
+            });
+        }
+
+        // Update quantum calculation results
+        function updateQuantumResults(data) {
+            // Update computational tab with results
+            const computationalContent = document.getElementById('computationalContent');
+            
+            let html = '<div class="row">';
+            html += '<div class="col-md-6">';
+            html += '<h6>Calculation Results</h6>';
+            
+            if (data.psi4_json) {
+                const psi4Data = data.psi4_json;
+                if (psi4Data.final_energy) {
+                    html += `<p><strong>Final Energy:</strong> ${psi4Data.final_energy.toFixed(6)} Hartree</p>`;
+                }
+                if (psi4Data.psi4_version) {
+                    html += `<p><strong>Version:</strong> ${psi4Data.psi4_version}</p>`;
+                }
+            }
+            
+            html += '</div>';
+            html += '<div class="col-md-6">';
+            html += '<h6>Output Summary</h6>';
+            
+            if (data.psi4_json && data.psi4_json.stdout) {
+                html += `<pre class="bg-light p-2 rounded" style="font-size: 0.8em; max-height: 200px; overflow-y: auto;">${data.psi4_json.stdout}</pre>`;
+            }
+            
+            html += '</div>';
+            html += '</div>';
+            
+            computationalContent.innerHTML = html;
+            
+            // Switch to computational tab
+            document.getElementById('computational-tab').click();
         }
     </script>
 
