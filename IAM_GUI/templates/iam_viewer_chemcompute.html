@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IAM – Intelligent Agent for Molecules</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <!-- ChemCompute-style layout and functionality -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style_chemcompute.css') }}">
+    
+    <style>
+        .nav-tabs .nav-link {
+            border: none;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-tabs .nav-link.active {
+            border-bottom-color: #0d6efd;
+            background: none;
+        }
+        .form-label {
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+        #viewer {
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header Section -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom">
+        <div class="container-fluid">
+            <div class="navbar-brand">
+                <span class="fw-bold text-primary">IAM</span>
+                <span class="ms-2 text-muted">– Intelligent Agent for Molecules</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Left Panel: Job Setup -->
+            <div class="col-md-4 col-lg-3">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">Job Setup</div>
+                    <div class="card-body">
+                        <!-- Molecule Input Section -->
+                        <div class="mb-3">
+                            <h6>Molecule Input</h6>
+                            <div class="btn-group mb-2" role="group">
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="showKetcher()">Draw</button>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="showSmilesInput()">SMILES</button>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="showFileUpload()">Upload</button>
+                            </div>
+                            
+                            <!-- Ketcher iframe -->
+                            <div id="ketcher-container" style="display: block;">
+                                <iframe id="ketcher-frame" src="/static/ketcher/index.html" width="100%" height="200" style="border: 1px solid #ddd;"></iframe>
+                            </div>
+                            
+                            <!-- SMILES input -->
+                            <div id="smiles-container" style="display: none;">
+                                <input type="text" id="smiles-input" class="form-control" placeholder="Enter SMILES string">
+                                <button class="btn btn-primary btn-sm mt-2" onclick="loadFromSmiles()">Load SMILES</button>
+                            </div>
+                            
+                            <!-- File upload -->
+                            <div id="file-container" style="display: none;">
+                                <input type="file" id="file-input" class="form-control" accept=".xyz,.mol,.sdf">
+                            </div>
+                        </div>
+                        
+                        <!-- Quantum Mechanical Parameters Section -->
+                        <div class="mb-3">
+                            <h6>Quantum Mechanical Parameters</h6>
+                            
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label">Package</label>
+                                    <select id="package-select" class="form-select form-select-sm">
+                                        <option value="xtb">XTB</option>
+                                        <option value="psi4">Psi4</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Calculation Type</label>
+                                    <select id="calc-type-select" class="form-select form-select-sm">
+                                        <option value="sp">Single Point</option>
+                                        <option value="opt" selected>Optimization</option>
+                                        <option value="freq">Frequency</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="row g-2 mt-2">
+                                <div class="col-6">
+                                    <label class="form-label">Charge</label>
+                                    <input type="number" id="charge-input" class="form-control form-control-sm" value="0">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Multiplicity</label>
+                                    <select id="multiplicity-select" class="form-select form-select-sm">
+                                        <option value="1" selected>Singlet</option>
+                                        <option value="2">Doublet</option>
+                                        <option value="3">Triplet</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="row g-2 mt-2">
+                                <div class="col-6">
+                                    <label class="form-label">Basis Set</label>
+                                    <select id="basis-select" class="form-select form-select-sm">
+                                        <option value="def2-SVP" selected>def2-SVP</option>
+                                        <option value="def2-TZVP">def2-TZVP</option>
+                                        <option value="6-31G*">6-31G*</option>
+                                        <option value="cc-pVDZ">cc-pVDZ</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Functional</label>
+                                    <select id="functional-select" class="form-select form-select-sm">
+                                        <option value="b3lyp" selected>B3LYP</option>
+                                        <option value="pbe0">PBE0</option>
+                                        <option value="m06-2x">M06-2X</option>
+                                        <option value="wb97x-d">wB97X-D</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <!-- Add-ons Section -->
+                            <div class="mt-3">
+                                <label class="form-label">Add-ons</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="addon-orbitals" value="orbitals">
+                                    <label class="form-check-label" for="addon-orbitals">Molecular Orbitals</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="addon-ir" value="ir">
+                                    <label class="form-check-label" for="addon-ir">IR Spectrum</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="addon-uv" value="uv">
+                                    <label class="form-check-label" for="addon-uv">UV-Vis</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="addon-nmr" value="nmr">
+                                    <label class="form-check-label" for="addon-nmr">NMR</label>
+                                </div>
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="mt-3 d-grid gap-2">
+                                <button type="button" class="btn btn-success" onclick="submitQuantumJob()">
+                                    <i class="bi bi-play-circle"></i> Run Calculation
+                                </button>
+                                <button type="button" class="btn btn-warning" onclick="predictPerformance()">
+                                    <i class="bi bi-lightning"></i> Predict Performance
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Results and Viewer -->
+            <div class="col-md-8 col-lg-9">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>Results & Visualization</span>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-light btn-sm" onclick="exportResults()">Export</button>
+                                <button class="btn btn-outline-light btn-sm" onclick="clearResults()">Clear</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- 3D Molecular Viewer -->
+                        <div id="viewer" style="height: 300px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
+                            <div class="d-flex align-items-center justify-content-center h-100 text-muted">
+                                <div class="text-center">
+                                    <i class="bi bi-molecule" style="font-size: 3rem;"></i>
+                                    <p class="mt-2">3D molecular structure will appear here</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Visualization Controls -->
+                        <div class="mt-3">
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <label class="form-label form-label-sm">Style</label>
+                                    <select id="render-style" class="form-select form-select-sm" onchange="updateViewer()">
+                                        <option value="stick">Stick</option>
+                                        <option value="sphere">Ball & Stick</option>
+                                        <option value="cartoon">Cartoon</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label form-label-sm">Color</label>
+                                    <select id="color-scheme" class="form-select form-select-sm" onchange="updateViewer()">
+                                        <option value="element">By Element</option>
+                                        <option value="charge">By Charge</option>
+                                        <option value="secondary">Secondary Structure</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check form-switch mt-4">
+                                        <input class="form-check-input" type="checkbox" id="show-labels" onchange="updateViewer()">
+                                        <label class="form-check-label" for="show-labels">Show Labels</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Results Tabs -->
+                        <div class="mt-4">
+                            <ul class="nav nav-tabs" id="results-tabs">
+                                <li class="nav-item">
+                                    <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" type="button">
+                                        <i class="bi bi-clipboard-data"></i> Summary
+                                    </button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link" id="orbitals-tab" data-bs-toggle="tab" data-bs-target="#orbitals" type="button">
+                                        <i class="bi bi-diagram-3"></i> Orbitals
+                                    </button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link" id="vibrations-tab" data-bs-toggle="tab" data-bs-target="#vibrations" type="button">
+                                        <i class="bi bi-soundwave"></i> Vibrations
+                                    </button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link" id="performance-tab" data-bs-toggle="tab" data-bs-target="#performance" type="button">
+                                        <i class="bi bi-lightning"></i> Performance
+                                    </button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link" id="output-tab" data-bs-toggle="tab" data-bs-target="#output" type="button">
+                                        <i class="bi bi-terminal"></i> Output
+                                    </button>
+                                </li>
+                            </ul>
+                            
+                            <div class="tab-content" id="results-content">
+                                <!-- Summary Tab -->
+                                <div class="tab-pane fade show active" id="summary" role="tabpanel">
+                                    <div class="p-3">
+                                        <div id="summary-content">
+                                            <div class="text-muted text-center">
+                                                <i class="bi bi-info-circle" style="font-size: 2rem;"></i>
+                                                <p class="mt-2">Calculation results will appear here</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Molecular Orbitals Tab -->
+                                <div class="tab-pane fade" id="orbitals" role="tabpanel">
+                                    <div class="p-3">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <h6>Orbital Controls</h6>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Orbital Type</label>
+                                                    <select id="orbital-type" class="form-select form-select-sm" onchange="renderOrbital()">
+                                                        <option value="homo">HOMO</option>
+                                                        <option value="lumo">LUMO</option>
+                                                        <option value="homo-1">HOMO-1</option>
+                                                        <option value="lumo+1">LUMO+1</option>
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Isosurface Value</label>
+                                                    <input type="range" id="cutoff-slider" class="form-range" min="0.01" max="0.1" step="0.01" value="0.03" onchange="updateCutoff()">
+                                                    <small class="text-muted">Value: <span id="cutoff-value">0.03</span></small>
+                                                </div>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="show-phase" onchange="renderOrbital()">
+                                                    <label class="form-check-label" for="show-phase">Show Phase</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h6>Orbital Information</h6>
+                                                <div id="orbital-info">
+                                                    <p class="text-muted">Select an orbital to view information</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Vibrations Tab -->
+                                <div class="tab-pane fade" id="vibrations" role="tabpanel">
+                                    <div class="p-3">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <h6>Vibrational Modes</h6>
+                                                <div id="vibration-list">
+                                                    <p class="text-muted">No vibrational data available</p>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h6>Animation Controls</h6>
+                                                <button class="btn btn-primary btn-sm" onclick="animateVibration()">Animate</button>
+                                                <button class="btn btn-secondary btn-sm" onclick="stopAnimation()">Stop</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Performance Tab -->
+                                <div class="tab-pane fade" id="performance" role="tabpanel">
+                                    <div class="p-3">
+                                        <div id="performance-content">
+                                            <div class="text-muted text-center">
+                                                <i class="bi bi-lightning" style="font-size: 2rem;"></i>
+                                                <p class="mt-2">Performance prediction results will appear here</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Output Tab -->
+                                <div class="tab-pane fade" id="output" role="tabpanel">
+                                    <div class="p-3">
+                                        <pre id="calculation-output" class="bg-dark text-light p-3 rounded" style="max-height: 300px; overflow-y: auto;">
+No output available
+                                        </pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    </div>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- 3Dmol.js for molecular visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/3dmol@latest/build/3Dmol-min.js"></script>
+    
+    <script>
+        let currentViewer = null;
+        let currentJobId = null;
+        
+        // Initialize 3D viewer
+        function initViewer() {
+            const element = document.getElementById('viewer');
+            currentViewer = $3Dmol.createViewer(element, {
+                defaultcolors: $3Dmol.elementColors.Jmol
+            });
+        }
+        
+        // Show/hide input sections
+        function showKetcher() {
+            document.getElementById('ketcher-container').style.display = 'block';
+            document.getElementById('smiles-container').style.display = 'none';
+            document.getElementById('file-container').style.display = 'none';
+        }
+        
+        function showSmilesInput() {
+            document.getElementById('ketcher-container').style.display = 'none';
+            document.getElementById('smiles-container').style.display = 'block';
+            document.getElementById('file-container').style.display = 'none';
+        }
+        
+        function showFileUpload() {
+            document.getElementById('ketcher-container').style.display = 'none';
+            document.getElementById('smiles-container').style.display = 'none';
+            document.getElementById('file-container').style.display = 'block';
+        }
+        
+        // Load molecule from SMILES
+        function loadFromSmiles() {
+            const smiles = document.getElementById('smiles-input').value;
+            if (smiles) {
+                // Convert SMILES to 3D and display
+                console.log('Loading SMILES:', smiles);
+                // TODO: Implement SMILES to XYZ conversion
+            }
+        }
+        
+        // Submit quantum calculation job
+        function submitQuantumJob() {
+            const formData = new FormData();
+            
+            // Get parameters
+            const package = document.getElementById('package-select').value;
+            const calcType = document.getElementById('calc-type-select').value;
+            const charge = document.getElementById('charge-input').value;
+            const multiplicity = document.getElementById('multiplicity-select').value;
+            const basis = document.getElementById('basis-select').value;
+            const functional = document.getElementById('functional-select').value;
+            
+            // Get add-ons
+            const addons = [];
+            document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
+                addons.push(checkbox.value);
+            });
+            
+            // TODO: Get molecular data from Ketcher or file
+            console.log('Submitting job with parameters:', {
+                package, calcType, charge, multiplicity, basis, functional, addons
+            });
+            
+            // Show loading state
+            showLoading('Running quantum calculation...');
+            
+            // TODO: Make actual API call to /run_quantum
+        }
+        
+        // Predict performance
+        function predictPerformance() {
+            // TODO: Get molecular data
+            const molData = 'dummy_xyz_data'; // Placeholder
+            
+            showLoading('Predicting performance...');
+            
+            fetch('/predict_performance', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({mol_data: molData})
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideLoading();
+                displayPerformanceResults(data);
+            })
+            .catch(error => {
+                hideLoading();
+                console.error('Error:', error);
+            });
+        }
+        
+        // Display performance results
+        function displayPerformanceResults(data) {
+            const performanceContent = document.getElementById('performance-content');
+            if (data.success && data.performance_data) {
+                const perf = data.performance_data;
+                performanceContent.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Detonation Properties</h6>
+                            <table class="table table-sm">
+                                <tr><td>Velocity of Detonation</td><td>${perf.detonation_velocity}</td></tr>
+                                <tr><td>Detonation Pressure</td><td>${perf.detonation_pressure}</td></tr>
+                                <tr><td>Chapman-Jouguet Pressure</td><td>${perf.chapman_jouguet_pressure}</td></tr>
+                                <tr><td>Density</td><td>${perf.density}</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Energetic Properties</h6>
+                            <table class="table table-sm">
+                                <tr><td>Oxygen Balance</td><td>${perf.oxygen_balance}</td></tr>
+                                <tr><td>Heat of Detonation</td><td>${perf.heat_of_detonation}</td></tr>
+                                <tr><td>TNT Equivalence</td><td>${perf.tnt_equivalence}</td></tr>
+                                <tr><td>Performance Rating</td><td>${perf.performance_rating}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                // Switch to performance tab
+                document.getElementById('performance-tab').click();
+            } else {
+                performanceContent.innerHTML = `<div class="alert alert-danger">Error: ${data.error}</div>`;
+            }
+        }
+        
+        // Render orbital visualization
+        function renderOrbital() {
+            const orbitalType = document.getElementById('orbital-type').value;
+            const showPhase = document.getElementById('show-phase').checked;
+            const cutoff = parseFloat(document.getElementById('cutoff-slider').value);
+            
+            console.log('Rendering orbital:', orbitalType, 'cutoff:', cutoff, 'phase:', showPhase);
+            
+            // TODO: Load cube file and render orbital
+            if (currentJobId) {
+                fetch(`/get_cube/${currentJobId}/${orbitalType}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Render cube data with 3Dmol
+                        console.log('Cube data received:', data.cube_type);
+                        // TODO: Parse and render cube file
+                    }
+                })
+                .catch(error => console.error('Error loading cube:', error));
+            }
+        }
+        
+        // Update cutoff value display
+        function updateCutoff() {
+            const cutoff = document.getElementById('cutoff-slider').value;
+            document.getElementById('cutoff-value').textContent = cutoff;
+            renderOrbital();
+        }
+        
+        // Update 3D viewer
+        function updateViewer() {
+            // TODO: Update viewer style/colors
+            console.log('Updating viewer');
+        }
+        
+        // Animation controls
+        function animateVibration() {
+            console.log('Starting vibration animation');
+        }
+        
+        function stopAnimation() {
+            console.log('Stopping animation');
+        }
+        
+        // Utility functions
+        function showLoading(message) {
+            // TODO: Show loading overlay
+            console.log('Loading:', message);
+        }
+        
+        function hideLoading() {
+            // TODO: Hide loading overlay
+            console.log('Loading complete');
+        }
+        
+        function exportResults() {
+            console.log('Exporting results');
+        }
+        
+        function clearResults() {
+            document.getElementById('summary-content').innerHTML = '<div class="text-muted text-center"><i class="bi bi-info-circle" style="font-size: 2rem;"></i><p class="mt-2">Calculation results will appear here</p></div>';
+            document.getElementById('performance-content').innerHTML = '<div class="text-muted text-center"><i class="bi bi-lightning" style="font-size: 2rem;"></i><p class="mt-2">Performance prediction results will appear here</p></div>';
+            document.getElementById('calculation-output').textContent = 'No output available';
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initViewer();
+            showKetcher(); // Default to ketcher
+        });
+    </script>
+</body>
+</html>

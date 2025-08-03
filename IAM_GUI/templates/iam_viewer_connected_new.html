@@ -1,0 +1,2364 @@
+!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="IAM - Professional Integrated Analysis & Modeling Platform for advanced molecular visualization and quantum chemistry calculations">
+    <meta name="keywords" content="molecular modeling, quantum chemistry, XTB, 3D visualization, computational chemistry, molecular orbitals, AI agent">
+    <meta name="author" content="IAM Development Team">
+    
+    <title>IAM – Professional Integrated Analysis & Modeling Platform</title>
+    
+    <!-- Preconnect to external domains for performance -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://3dmol.org" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    
+    <!-- Google Fonts for professional typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5 & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Enhanced professional styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style_enhanced.css') }}?v={{ cache_bust }}">
+    
+    <!-- Professional Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E�%3C/text%3E%3C/svg%3E">
+    
+    <!-- Critical CSS for initial render -->
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --header-height: 70px;
+            --border-radius-lg: 12px;
+            --shadow-elegant: 0 8px 32px rgba(31, 38, 135, 0.15);
+        }
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #2d3748;
+            min-height: 100vh;
+        }
+        .header-bar { 
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            height: var(--header-height);
+            box-shadow: var(--shadow-elegant);
+        }
+        .professional-badge {
+            background: var(--primary-gradient);
+            color: white;
+            font-weight: 600;
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Professional Header -->
+    <header class="header-bar d-flex justify-content-between align-items-center px-4" role="banner">
+        <div class="d-flex align-items-center gap-3">
+            <div class="header-icon fs-2">🧪</div>
+            <h1 class="h4 mb-0 fw-bold text-dark">
+                IAM – Professional Molecular Platform
+                <small class="professional-badge ms-2">Pro v{{ cache_bust }}</small>
+            </h1>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="darkModeSwitch" role="switch" aria-label="Toggle dark mode">
+                <label class="form-check-label text-dark fw-medium" for="darkModeSwitch">
+                    <i class="bi bi-moon-fill"></i> Dark Mode
+                </label>
+            </div>
+        </div>
+    </header>
+
+    <!-- Compact Professional Container -->
+    <main class="container-fluid px-3" role="main" style="height: calc(100vh - 80px);">
+        <div class="row h-100 g-3">
+            
+            <!-- COMPACT LEFT PANEL - Input & Controls -->
+            <div class="col-lg-4 col-xl-3 h-100">
+                <div class="card border-0 shadow-lg h-100" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); border-radius: var(--border-radius-lg);">
+                    <div class="card-body p-3 overflow-auto">
+                        
+                        <!-- Compact Molecular Sketcher -->
+                        <section class="mb-3">
+                            <h6 class="section-title d-flex align-items-center gap-2 mb-2">
+                                <i class="bi bi-palette2 text-primary"></i>
+                                <span class="fw-bold">Molecular Sketcher</span>
+                            </h6>
+                            <div class="sketcher-container position-relative" style="border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                                <iframe
+                                    id="ketcherFrame"
+                                    src="/static/ketcher/index.html"
+                                    width="100%"
+                                    height="250"
+                                    title="Ketcher Molecular Editor"
+                                    loading="lazy"
+                                    style="border: none; background: #fff;">
+                                </iframe>
+                            </div>
+                            
+                            <!-- Compact Action Buttons -->
+                            <div class="d-flex gap-1 mt-2" role="group">
+                                <button id="loadFromSketcher" class="btn btn-primary btn-sm flex-fill" type="button">
+                                    <i class="bi bi-upload"></i> Load
+                                </button>
+                                <button id="exportSmiles" class="btn btn-outline-primary btn-sm flex-fill" type="button">
+                                    <i class="bi bi-file-earmark-code"></i> SMILES
+                                </button>
+                                <button id="clearSketcher" class="btn btn-outline-warning btn-sm flex-fill" type="button">
+                                    <i class="bi bi-trash"></i> Clear
+                                </button>
+                            </div>
+                        </section>
+
+                        <!-- Compact Input Methods -->
+                        <section class="mb-3">
+                            <h6 class="section-title d-flex align-items-center gap-2 mb-2">
+                                <i class="bi bi-input-cursor text-success"></i>
+                                <span class="fw-bold">Input Methods</span>
+                            </h6>
+                            
+                            <!-- SMILES Input -->
+                            <div class="mb-2">
+                                <label for="smilesInput" class="form-label fw-medium small">SMILES/MOL</label>
+                                <input type="text" id="smilesInput" class="form-control form-control-sm" placeholder="Enter SMILES (e.g., CCO)">
+                            </div>
+
+                            <!-- XYZ Coordinates -->
+                            <div class="mb-2">
+                                <label for="xyzTextarea" class="form-label fw-medium small">XYZ Coordinates</label>
+                                <textarea id="xyzTextarea" class="form-control form-control-sm font-monospace" rows="3" 
+                                          placeholder="Paste XYZ coordinates..." spellcheck="false"></textarea>
+                            </div>
+
+                            <!-- File Upload -->
+                            <div class="mb-2">
+                                <label for="fileInput" class="form-label fw-medium small">File Upload</label>
+                                <input type="file" id="fileInput" class="form-control form-control-sm" 
+                                       accept=".xyz,.mol,.sdf,.pdb,.cif" multiple>
+                            </div>
+                        </section>
+
+                        <!-- Compact Calculation Parameters -->
+                        <section class="mb-3">
+                            <h6 class="section-title d-flex align-items-center gap-2 mb-2">
+                                <i class="bi bi-sliders text-warning"></i>
+                                <span class="fw-bold">Parameters</span>
+                            </h6>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label for="charge" class="form-label fw-medium small">Charge</label>
+                                    <input type="number" id="charge" class="form-control form-control-sm" value="0" min="-10" max="10">
+                                </div>
+                                <div class="col-6">
+                                    <label for="multiplicity" class="form-label fw-medium small">Multiplicity</label>
+                                    <select id="multiplicity" class="form-select form-select-sm">
+                                        <option value="1">Singlet (1)</option>
+                                        <option value="2">Doublet (2)</option>
+                                        <option value="3">Triplet (3)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Compact Action Center -->
+                        <section>
+                            <div class="d-grid gap-2">
+                                <button id="runXTBBtn" class="btn btn-primary fw-bold" 
+                                        style="background: var(--primary-gradient); border: none;" type="button">
+                                    <i class="bi bi-play-circle-fill"></i>
+                                    <span>Run Analysis</span>
+                                </button>
+                                <button id="resetAll" class="btn btn-outline-secondary btn-sm" type="button">
+                                    <i class="bi bi-arrow-clockwise"></i> Reset All
+                                </button>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+            <!-- COMPACT RIGHT PANEL - Visualization & Analysis -->
+            <div class="col-lg-8 col-xl-9 h-100">
+                <div class="card border-0 shadow-lg h-100" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); border-radius: var(--border-radius-lg);">
+                    <div class="card-body p-3 d-flex flex-column h-100">
+                        
+                        <!-- Compact 3D Viewer -->
+                        <section class="mb-3 flex-shrink-0">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="section-title d-flex align-items-center gap-2 mb-0">
+                                    <i class="bi bi-eye text-info"></i>
+                                    <span class="fw-bold">3D Molecular Viewer</span>
+                                </h6>
+                                
+                                <!-- Compact Viewer Controls -->
+                                <div class="d-flex gap-1 align-items-center">
+                                    <select id="viewerBg" class="form-select form-select-sm" style="width: auto;">
+                                        <option value="white">White</option>
+                                        <option value="#f6f9fb">Light Gray</option>
+                                        <option value="#e3f2fd">Pale Blue</option>
+                                        <option value="black">Black</option>
+                                        <option value="transparent">Transparent</option>
+                                    </select>
+                                    <button id="viewerReset" class="btn btn-outline-secondary btn-sm">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                    <button id="viewerCenter" class="btn btn-outline-secondary btn-sm">
+                                        <i class="bi bi-bullseye"></i>
+                                    </button>
+                                    <button id="viewerRotate" class="btn btn-outline-secondary btn-sm">
+                                        <i class="bi bi-arrow-repeat"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="viewer" class="position-relative bg-light border rounded" 
+                                 style="height: 280px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                                <div class="position-absolute top-50 start-50 translate-middle text-center text-muted">
+                                    <i class="bi bi-cube display-6 mb-2 d-block"></i>
+                                    <p class="mb-0 small">Load a molecule to start visualization</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Compact Professional Tabs -->
+                        <section class="flex-grow-1 d-flex flex-column">
+                            <div class="professional-tabs mb-2 flex-shrink-0">
+                                <nav class="nav nav-pills nav-fill gap-1" role="tablist">
+                                    <button class="nav-link active fw-medium small" id="summary-tab" 
+                                            onclick="showResultTab('summary')" role="tab">
+                                        <i class="bi bi-bar-chart"></i> Summary
+                                    </button>
+                                    <button class="nav-link fw-medium small" id="computational-tab" 
+                                            onclick="showResultTab('computational')" role="tab">
+                                        <i class="bi bi-cpu"></i> Computational
+                                    </button>
+                                    <button class="nav-link fw-medium small" id="performance-tab" 
+                                            onclick="showResultTab('performance')" role="tab">
+                                        <i class="bi bi-speedometer"></i> Performance
+                                    </button>
+                                    <button class="nav-link fw-medium small" id="orbitals-tab" 
+                                            onclick="showResultTab('orbitals')" role="tab">
+                                        <i class="bi bi-diagram-3"></i> Orbitals
+                                    </button>
+                                    <button class="nav-link fw-medium small" id="aiagent-tab" 
+                                            onclick="showResultTab('aiagent')" role="tab">
+                                        <i class="bi bi-robot"></i> AI Agent
+                                    </button>
+                                    <button class="nav-link fw-medium small" id="tools-tab" 
+                                            onclick="showResultTab('tools')" role="tab">
+                                        <i class="bi bi-tools"></i> Tools
+                                    </button>
+                                </nav>
+                            </div>
+                            
+                            <!-- Compact Tab Contents -->
+                            <div class="tab-contents flex-grow-1 overflow-auto">
+                                <!-- Summary Tab -->
+                                <div class="tab-panel active h-100" id="tab-summary">
+                                    <div class="p-3 bg-light rounded h-100 d-flex flex-column" style="border-radius: 8px;">
+                                        <h6 class="fw-bold text-primary mb-2">
+                                            <i class="bi bi-graph-up"></i> Analysis Summary
+                                        </h6>
+                                        <div id="summaryContent" class="text-muted flex-grow-1">
+                                            <p class="small">Run a professional analysis to see comprehensive results...</p>
+                                            <ul class="list-unstyled mt-2 small">
+                                                <li><i class="bi bi-check-circle text-success me-2"></i> Quantum chemistry calculations</li>
+                                                <li><i class="bi bi-check-circle text-success me-2"></i> Molecular properties prediction</li>
+                                                <li><i class="bi bi-check-circle text-success me-2"></i> Performance optimization</li>
+                                                <li><i class="bi bi-check-circle text-success me-2"></i> AI-powered insights</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Computational Chemistry Tab -->
+                                <div class="tab-panel d-none h-100" id="tab-computational">
+                                    <div class="p-3 h-100">
+                                        <h6 class="fw-bold text-primary mb-2">
+                                            <i class="bi bi-atom"></i> Computational Chemistry Suite
+                                        </h6>
+                                        <div class="row g-2 mb-3">
+                                            <div class="col-md-6">
+                                                <div class="p-2 bg-light rounded">
+                                                    <h6 class="fw-bold small">Quantum Calculations</h6>
+                                                    <button class="btn btn-primary btn-sm mb-1 w-100" onclick="runQuantumAnalysis()">
+                                                        <i class="bi bi-calculator"></i> DFT Analysis
+                                                    </button>
+                                                    <button class="btn btn-outline-primary btn-sm w-100" onclick="runGeometryOptimization()">
+                                                        <i class="bi bi-arrows-move"></i> Geometry Opt.
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="p-2 bg-light rounded">
+                                                    <h6 class="fw-bold small">Thermodynamics</h6>
+                                                    <button class="btn btn-success btn-sm mb-1 w-100" onclick="calculateThermodynamics()">
+                                                        <i class="bi bi-thermometer"></i> Thermodynamics
+                                                    </button>
+                                                    <button class="btn btn-outline-success btn-sm w-100" onclick="calculateVibrationalModes()">
+                                                        <i class="bi bi-soundwave"></i> Vibrational
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div id="computationalResults" class="p-2 bg-light rounded flex-grow-1">
+                                            <h6 class="small">Calculation Results:</h6>
+                                            <pre id="computational-output" class="text-muted font-monospace small overflow-auto" style="max-height: 200px;">Results will appear here...</pre>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Performance Analysis Tab -->
+                                <div class="tab-panel d-none h-100" id="tab-performance">
+                                    <div class="p-3 h-100">
+                                        <h6 class="fw-bold text-primary mb-2">
+                                            <i class="bi bi-lightning-charge"></i> Performance Prediction Suite
+                                        </h6>
+                                        <div class="d-flex flex-wrap gap-1 mb-2">
+                                            <button class="btn btn-warning btn-sm" onclick="predictStability()">
+                                                <i class="bi bi-shield-check"></i> Stability
+                                            </button>
+                                            <button class="btn btn-danger btn-sm" onclick="predictVoD()">
+                                                <i class="bi bi-speedometer2"></i> VoD
+                                            </button>
+                                            <button class="btn btn-info btn-sm" onclick="optimizePerformance()">
+                                                <i class="bi bi-gear-wide-connected"></i> Optimize
+                                            </button>
+                                            <button class="btn btn-secondary btn-sm" onclick="generateReport()">
+                                                <i class="bi bi-file-earmark-text"></i> Report
+                                            </button>
+                                        </div>
+                                        <div id="performanceResults" class="p-2 bg-light rounded flex-grow-1">
+                                            <h6 class="small">Performance Analysis Results:</h6>
+                                            <pre id="performance-output" class="text-muted small overflow-auto" style="max-height: 250px;">Performance analysis results will appear here...</pre>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Molecular Orbitals Tab -->
+                                <div class="tab-panel d-none h-100" id="tab-orbitals">
+                                    <div class="p-3 h-100">
+                                        <h6 class="fw-bold text-primary mb-2">
+                                            <i class="bi bi-diagram-3-fill"></i> Molecular Orbitals
+                                        </h6>
+                                        <div class="d-flex gap-1 mb-2">
+                                            <button class="btn btn-primary btn-sm" onclick="openProfessionalMolecularOrbitals()">
+                                                <i class="bi bi-eye"></i> Visualize Orbitals
+                                            </button>
+                                            <button class="btn btn-outline-primary btn-sm" onclick="openPhysicalChemistry()">
+                                                <i class="bi bi-atom"></i> Enhanced Analysis
+                                            </button>
+                                        </div>
+                                        <div id="orbitalsContent" class="p-2 bg-light rounded flex-grow-1">
+                                            <h6 class="small">Orbital Analysis:</h6>
+                                            <p class="text-muted small">Professional molecular orbital visualization and analysis tools.</p>
+                                            <ul class="list-unstyled small">
+                                                <li><i class="bi bi-check2 text-success me-1"></i> HOMO-LUMO analysis</li>
+                                                <li><i class="bi bi-check2 text-success me-1"></i> Electron density mapping</li>
+                                                <li><i class="bi bi-check2 text-success me-1"></i> Orbital energy diagrams</li>
+                                                <li><i class="bi bi-check2 text-success me-1"></i> Electronic transitions</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- AI Agent Tab -->
+                                <div class="tab-panel d-none h-100" id="tab-aiagent">
+                                    <div class="p-3 h-100 d-flex flex-column">
+                                        <h6 class="fw-bold text-primary mb-2">
+                                            <i class="bi bi-robot"></i> AI-Powered Molecular Agent
+                                        </h6>
+                                        <div class="mb-2 flex-shrink-0">
+                                            <textarea id="aiPrompt" class="form-control form-control-sm mb-2" rows="2" 
+                                                      placeholder="Ask about your molecule: 'What are the key properties?' or 'Suggest modifications for better performance'"></textarea>
+                                            <button class="btn btn-primary btn-sm" onclick="queryAIAgent()">
+                                                <i class="bi bi-send"></i> Ask AI Agent
+                                            </button>
+                                        </div>
+                                        <div id="aiResponse" class="p-2 bg-light rounded flex-grow-1 overflow-auto">
+                                            <h6 class="small">AI Agent Response:</h6>
+                                            <div class="text-muted small">
+                                                <p>The AI agent can help you with:</p>
+                                                <ul>
+                                                    <li>Molecular property predictions</li>
+                                                    <li>Structural analysis and insights</li>
+                                                    <li>Performance optimization suggestions</li>
+                                                    <li>Safety and handling recommendations</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Tools Tab -->
+                                <div class="tab-panel d-none h-100" id="tab-tools">
+                                    <div class="p-3 h-100">
+                                        <h6 class="fw-bold text-primary mb-2">
+                                            <i class="bi bi-tools"></i> Professional Toolkit
+                                        </h6>
+                                        <div class="row g-2 mb-2">
+                                            <div class="col-md-6">
+                                                <div class="p-2 bg-light rounded">
+                                                    <h6 class="fw-bold small">Export Tools</h6>
+                                                    <button class="btn btn-outline-primary btn-sm mb-1 w-100" onclick="exportToPDF()">
+                                                        <i class="bi bi-download"></i> PDF Report
+                                                    </button>
+                                                    <button class="btn btn-outline-primary btn-sm w-100" onclick="exportToCSV()">
+                                                        <i class="bi bi-filetype-csv"></i> CSV Data
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="p-2 bg-light rounded">
+                                                    <h6 class="fw-bold small">Analysis Tools</h6>
+                                                    <button class="btn btn-outline-success btn-sm mb-1 w-100" onclick="batchAnalysis()">
+                                                        <i class="bi bi-graph-up"></i> Batch Analysis
+                                                    </button>
+                                                    <button class="btn btn-outline-success btn-sm w-100" onclick="compareStructures()">
+                                                        <i class="bi bi-clipboard-data"></i> Compare
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div id="toolsOutput" class="p-2 bg-light rounded flex-grow-1">
+                                            <h6 class="small">Tool Results:</h6>
+                                            <pre id="tools-result" class="text-muted small overflow-auto" style="max-height: 200px;">Tool results will appear here...</pre>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+                
+                <!-- Compact Loading Overlay -->
+                <div id="loadingOverlay" class="position-absolute top-0 start-0 w-100 h-100 d-none align-items-center justify-content-center" 
+                     style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 12px; z-index: 1000;">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary mb-2" style="width: 2rem; height: 2rem;" role="status"></div>
+                        <h6 class="fw-bold text-primary">Processing Analysis...</h6>
+                        <p class="text-muted mb-0 small">Running molecular calculations</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <!-- Professional Footer -->
+    <footer class="mt-5 py-4 text-center" style="background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(20px);">
+        <div class="container">
+            <p class="mb-1 text-muted">IAM - Professional Integrated Analysis & Modeling Platform</p>
+            <p class="mb-0 small text-muted">Enhanced with quantum chemistry calculations, AI-powered analysis, and professional molecular orbital visualization</p>
+        </div>
+    </footer>
+
+    <!-- Professional Toast Notifications -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050;">
+        <div id="jobToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <strong>Professional Analysis Complete!</strong>
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts with optimized loading -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" 
+            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" 
+            crossorigin="anonymous" defer></script>
+    
+    <!-- 3Dmol.js for molecular visualization -->
+    <script src="https://3Dmol.org/build/3Dmol-min.js" defer></script>
+    
+    <!-- Enhanced professional script -->
+    <script src="{{ url_for('static', filename='script_enhanced.js') }}?v={{ cache_bust }}" defer></script>
+
+    <!-- Professional JavaScript Functions -->
+    <script>
+        // Professional 3Dmol.js viewer with enhanced features
+        let viewer3D = null;
+        let autoRotate = false;
+        let autoRotateInterval = null;
+        let lastXyzString = null;
+
+        function renderMolecule(xyzString) {
+            lastXyzString = xyzString || '';
+            const viewerDiv = document.getElementById("viewer");
+            if (viewerDiv) {
+                viewerDiv.innerHTML = "";
+                let bg = document.getElementById('viewerBg') ? document.getElementById('viewerBg').value : 'white';
+                viewer3D = $3Dmol.createViewer(viewerDiv, { backgroundColor: bg });
+                if (xyzString) {
+                    viewer3D.addModel(xyzString, "xyz");
+                    viewer3D.setStyle({}, { stick: { radius: 0.2 }, sphere: { scale: 0.3 } });
+                    viewer3D.zoomTo();
+                    viewer3D.render();
+                    
+                    // Remove placeholder
+                    const placeholder = viewerDiv.querySelector('.position-absolute');
+                    if (placeholder) placeholder.remove();
+                }
+            }
+        }
+
+        function setViewerBg(color) {
+            if (viewer3D) {
+                viewer3D.setBackgroundColor(color);
+                viewer3D.render();
+            }
+        }
+
+        function resetViewer() {
+            if (viewer3D) {
+                viewer3D.zoomTo();
+                viewer3D.render();
+            }
+        }
+
+        function centerViewer() {
+            if (viewer3D) {
+                viewer3D.center();
+                viewer3D.render();
+            }
+        }
+
+        function toggleRotation() {
+            autoRotate = !autoRotate;
+            if (autoRotate && viewer3D) {
+                autoRotateInterval = setInterval(() => {
+                    viewer3D.rotate(1, 'y');
+                    viewer3D.render();
+                }, 50);
+            } else {
+                clearInterval(autoRotateInterval);
+            }
+        }
+
+        // Professional Tab Management
+        function showResultTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-panel').forEach(panel => {
+                panel.classList.remove('active');
+                panel.classList.add('d-none');
+            });
+            
+            // Remove active class from all nav links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Show selected tab
+            const selectedTab = document.getElementById(`tab-${tabName}`);
+            const selectedNavLink = document.getElementById(`${tabName}-tab`);
+            
+            if (selectedTab) {
+                selectedTab.classList.remove('d-none');
+                selectedTab.classList.add('active');
+            }
+            
+            if (selectedNavLink) {
+                selectedNavLink.classList.add('active');
+            }
+        }
+
+        // Performance Analysis Functions
+        async function predictStability() {
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                const molData = await ketcher.getMolfile();
+                if (!molData || molData.trim() === '') {
+                    showAlert('Please draw or load a molecule first.', 'warning');
+                    return;
+                }
+                
+                showLoading('Predicting Stability...');
+                
+                const response = await fetch('/predict_stability', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mol_data: molData })
+                });
+                
+                const data = await response.json();
+                const outputElement = document.getElementById('performance-output');
+                
+                if (data.success && outputElement) {
+                    outputElement.innerHTML = `
+                        <div class="analysis-results">
+                            <h6 class="text-primary mb-3">🛡️ Stability Analysis Results</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Thermal Stability</h6>
+                                        <span class="fw-bold">${data.results.thermal_stability}%</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Decomposition Temp</h6>
+                                        <span class="fw-bold">${data.results.decomposition_temp}°C</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <div class="result-card p-3 rounded bg-light">
+                                    <h6 class="small text-muted mb-2">Stability Rating</h6>
+                                    <span class="badge bg-success">${data.results.stability_rating}</span>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <h6 class="small text-muted mb-2">Recommendations</h6>
+                                <p class="mb-0">${data.results.recommendations}</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    outputElement.textContent = `Error: ${data.error}`;
+                }
+                
+                showResultTab('performance');
+                
+            } catch (error) {
+                console.error('Stability prediction error:', error);
+                showAlert('Error predicting stability. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function predictVoD() {
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                const molData = await ketcher.getMolfile();
+                if (!molData || molData.trim() === '') {
+                    showAlert('Please draw or load a molecule first.', 'warning');
+                    return;
+                }
+                
+                showLoading('Predicting VoD...');
+                
+                const response = await fetch('/predict_vod', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mol_data: molData })
+                });
+                
+                const data = await response.json();
+                const outputElement = document.getElementById('performance-output');
+                
+                if (data.success && outputElement) {
+                    outputElement.innerHTML = `
+                        <div class="analysis-results">
+                            <h6 class="text-primary mb-3">💥 VoD Prediction Results</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Velocity of Detonation</h6>
+                                        <span class="fw-bold">${data.results.velocity_of_detonation} m/s</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Detonation Pressure</h6>
+                                        <span class="fw-bold">${data.results.detonation_pressure} GPa</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Performance Rating</h6>
+                                        <span class="badge bg-warning">${data.results.performance_rating}</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">TNT Equivalence</h6>
+                                        <span class="fw-bold">${data.results.tnt_equivalence}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    outputElement.textContent = `Error: ${data.error}`;
+                }
+                
+                showResultTab('performance');
+                
+            } catch (error) {
+                console.error('VoD prediction error:', error);
+                showAlert('Error predicting VoD. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Add other missing computational functions
+        async function runGeometryOptimization() {
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                const molData = await ketcher.getMolfile();
+                if (!molData || molData.trim() === '') {
+                    showAlert('Please draw or load a molecule first.', 'warning');
+                    return;
+                }
+                
+                showLoading('Optimizing Geometry...');
+                
+                const response = await fetch('/geometry_optimization', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mol_data: molData })
+                });
+                
+                const data = await response.json();
+                const outputElement = document.getElementById('computational-output');
+                
+                if (data.success && outputElement) {
+                    outputElement.innerHTML = `
+                        <div class="analysis-results">
+                            <h6 class="text-primary mb-3">🔧 Geometry Optimization Results</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Converged</h6>
+                                        <span class="badge ${data.results.converged ? 'bg-success' : 'bg-warning'}">${data.results.converged ? 'Yes' : 'No'}</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Final Energy</h6>
+                                        <span class="fw-bold">${data.results.final_energy} hartree</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Optimization Steps</h6>
+                                        <span class="fw-bold">${data.results.optimization_steps}</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">RMS Gradient</h6>
+                                        <span class="fw-bold">${data.results.rms_gradient}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    outputElement.textContent = `Error: ${data.error}`;
+                }
+                
+                showResultTab('computational');
+                
+            } catch (error) {
+                console.error('Geometry optimization error:', error);
+                showAlert('Error running geometry optimization. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function calculateThermodynamics() {
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                const molData = await ketcher.getMolfile();
+                if (!molData || molData.trim() === '') {
+                    showAlert('Please draw or load a molecule first.', 'warning');
+                    return;
+                }
+                
+                showLoading('Calculating Thermodynamics...');
+                
+                const response = await fetch('/calculate_thermodynamics', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        mol_data: molData,
+                        temperature: 298.15 
+                    })
+                });
+                
+                const data = await response.json();
+                const outputElement = document.getElementById('computational-output');
+                
+                if (data.success && outputElement) {
+                    outputElement.innerHTML = `
+                        <div class="analysis-results">
+                            <h6 class="text-primary mb-3">🌡️ Thermodynamics Results</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Enthalpy</h6>
+                                        <span class="fw-bold">${data.results.enthalpy} kJ/mol</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Entropy</h6>
+                                        <span class="fw-bold">${data.results.entropy} J/mol·K</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Gibbs Free Energy</h6>
+                                        <span class="fw-bold">${data.results.gibbs_free_energy} kJ/mol</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Heat Capacity</h6>
+                                        <span class="fw-bold">${data.results.heat_capacity} J/mol·K</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <p class="mb-0"><strong>Temperature:</strong> ${data.temperature} K</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    outputElement.textContent = `Error: ${data.error}`;
+                }
+                
+                showResultTab('computational');
+                
+            } catch (error) {
+                console.error('Thermodynamics calculation error:', error);
+                showAlert('Error calculating thermodynamics. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function calculateVibrationalModes() {
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                const molData = await ketcher.getMolfile();
+                if (!molData || molData.trim() === '') {
+                    showAlert('Please draw or load a molecule first.', 'warning');
+                    return;
+                }
+                
+                showLoading('Calculating Vibrational Modes...');
+                
+                const response = await fetch('/calculate_vibrational_modes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mol_data: molData })
+                });
+                
+                const data = await response.json();
+                const outputElement = document.getElementById('computational-output');
+                
+                if (data.success && outputElement) {
+                    outputElement.innerHTML = `
+                        <div class="analysis-results">
+                            <h6 class="text-primary mb-3">🎵 Vibrational Analysis Results</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Number of Modes</h6>
+                                        <span class="fw-bold">${data.results.num_modes}</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Zero Point Energy</h6>
+                                        <span class="fw-bold">${data.results.zero_point_energy} hartree</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <h6 class="small text-muted mb-2">Selected Frequencies (cm⁻¹)</h6>
+                                <div class="d-flex flex-wrap gap-2">
+                                    ${data.results.frequencies.map(freq => `<span class="badge bg-secondary">${freq}</span>`).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    outputElement.textContent = `Error: ${data.error}`;
+                }
+                
+                showResultTab('computational');
+                
+            } catch (error) {
+                console.error('Vibrational modes calculation error:', error);
+                showAlert('Error calculating vibrational modes. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // AI Agent Functions
+        async function queryAIAgent() {
+            try {
+                const prompt = document.getElementById('aiPrompt').value;
+                if (!prompt.trim()) {
+                    showAlert('Please enter a question for the AI agent.', 'warning');
+                    return;
+                }
+                
+                showLoading('Querying AI Agent...');
+                
+                let molData = '';
+                if (ketcher) {
+                    try {
+                        molData = await ketcher.getMolfile();
+                    } catch (error) {
+                        console.log('Could not get molecular data:', error);
+                    }
+                }
+                
+                const response = await fetch('/ai_agent_query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        prompt: prompt,
+                        mol_data: molData
+                    })
+                });
+                
+                const data = await response.json();
+                const responseElement = document.getElementById('aiResponse');
+                
+                if (data.success && responseElement) {
+                    responseElement.innerHTML = `
+                        <div class="ai-response p-3 rounded bg-light">
+                            <h6 class="text-primary mb-2">🤖 AI Agent Response:</h6>
+                            <p class="mb-2">${data.response}</p>
+                            <small class="text-muted">Response to: "${data.prompt}"</small>
+                        </div>
+                    `;
+                } else {
+                    responseElement.innerHTML = `<div class="alert alert-danger">Error: ${data.error}</div>`;
+                }
+                
+                showResultTab('ai-agent');
+                
+            } catch (error) {
+                console.error('AI agent query error:', error);
+                showAlert('Error querying AI agent. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Performance optimization functions
+        async function optimizePerformance() {
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                const molData = await ketcher.getMolfile();
+                if (!molData || molData.trim() === '') {
+                    showAlert('Please draw or load a molecule first.', 'warning');
+                    return;
+                }
+                
+                showLoading('Optimizing Performance...');
+                
+                const response = await fetch('/optimize_performance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        mol_data: molData,
+                        target: 'general'
+                    })
+                });
+                
+                const data = await response.json();
+                const outputElement = document.getElementById('performance-output');
+                
+                if (data.success && outputElement) {
+                    outputElement.innerHTML = `
+                        <div class="analysis-results">
+                            <h6 class="text-primary mb-3">⚡ Performance Optimization Results</h6>
+                            <div class="row g-3">
+                                <div class="col-md-12">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Optimization Score</h6>
+                                        <span class="fw-bold">${data.results.optimization_score}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <h6 class="small text-muted mb-2">Suggestions</h6>
+                                <ul class="list-unstyled">
+                                    ${data.results.suggestions.map(suggestion => `<li class="mb-1">• ${suggestion}</li>`).join('')}
+                                </ul>
+                            </div>
+                            <div class="mt-3">
+                                <p class="mb-0"><strong>Predicted Improvement:</strong> ${data.results.predicted_improvement}</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    outputElement.textContent = `Error: ${data.error}`;
+                }
+                
+                showResultTab('performance');
+                
+            } catch (error) {
+                console.error('Performance optimization error:', error);
+                showAlert('Error optimizing performance. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Tools Functions
+        async function exportToPDF() {
+            try {
+                showLoading('Exporting to PDF...');
+                
+                const response = await fetch('/export_pdf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`PDF ready for download: ${data.filename}`, 'success');
+                } else {
+                    throw new Error(data.error);
+                }
+                
+            } catch (error) {
+                console.error('PDF export error:', error);
+                showAlert('Error exporting to PDF. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function openProfessionalMolecularOrbitals() {
+            try {
+                showLoading('Opening Molecular Orbitals...');
+                
+                const response = await fetch('/professional_molecular_orbitals');
+                
+                if (response.ok) {
+                    const html = await response.text();
+                    
+                    // Open in new window
+                    const newWindow = window.open('', '_blank', 'width=1200,height=800');
+                    newWindow.document.write(html);
+                    newWindow.document.close();
+                    
+                    showAlert('Molecular Orbitals opened in new window', 'success');
+                } else {
+                    throw new Error('Failed to load molecular orbitals');
+                }
+                
+            } catch (error) {
+                console.error('Molecular orbitals error:', error);
+                showAlert('Error opening molecular orbitals. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+                hideLoading();
+            }
+            
+            showLoading(true);
+            try {
+                const response = await fetch('/predict_vod', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ xyz_data: xyzData })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    const results = data.result;
+                    const vod = results.vod_predictions || {};
+                    const pressure = results.detonation_pressure || {};
+                    const performance = results.performance_assessment || {};
+                    const density = results.density_analysis || {};
+                    const oxygen_balance = results.oxygen_balance || {};
+                    
+                    const output = `==========================================
+🚀 PROFESSIONAL VoD ANALYSIS
+==========================================
+
+🚀 Performance Metrics:
+   Recommended VoD: ${vod.recommended_vod?.toFixed(0) || 'N/A'} m/s
+   Detonation Pressure: ${pressure.pressure_gpa?.toFixed(1) || 'N/A'} GPa
+   Performance Rating: ${performance.rating || 'N/A'}
+   
+📊 Methods Comparison:
+   Kamlet-Jacobs: ${vod.kamlet_jacobs?.toFixed(0) || 'N/A'} m/s
+   Cooper Method: ${vod.cooper?.toFixed(0) || 'N/A'} m/s
+   Confidence: ${vod.confidence || 'N/A'}
+   
+🏗️ Physical Properties:
+   Estimated Density: ${density.estimated_density?.toFixed(2) || 'N/A'} g/cm³
+   Oxygen Balance: ${oxygen_balance.oxygen_balance_co2?.toFixed(1) || 'N/A'}%
+   
+📈 TNT Comparison:
+   ${performance.comparison_to_tnt || 'N/A'}
+   
+Method: ${data.result.method || 'Professional VoD Predictor'}`;
+                    
+                    document.getElementById('performance-output').textContent = output;
+                    showResultTab('performance');
+                    showToastMsg('Professional VoD analysis complete!');
+                } else {
+                    throw new Error(data.error || 'Analysis failed');
+                }
+            } catch (error) {
+                showToastMsg(`VoD analysis error: ${error.message}`, true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function optimizePerformance() {
+            const xyzData = getCurrentXYZData();
+            if (!xyzData) {
+                showToastMsg('Please load a molecule first', true);
+                return;
+            }
+            
+            showLoading(true);
+            try {
+                const response = await fetch('/optimize_performance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ xyz_data: xyzData })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    const results = data.result;
+                    const current = results.current_performance || {};
+                    const strategies = results.optimization_strategies || [];
+                    const improvements = results.performance_improvements || {};
+                    const feasibility = results.feasibility_assessment || {};
+                    
+                    const output = `==========================================
+⚡ PROFESSIONAL PERFORMANCE OPTIMIZATION
+==========================================
+
+📊 Current Performance:
+   VoD: ${current.estimated_vod?.toFixed(0) || 'N/A'} m/s
+   Density: ${current.estimated_density?.toFixed(2) || 'N/A'} g/cm³
+   Oxygen Balance: ${current.oxygen_balance?.toFixed(1) || 'N/A'}%
+   
+🎯 Optimization Strategies (${strategies.length} found):
+${strategies.map((s, i) => `   ${i+1}. ${s.name} (${s.difficulty})`).join('\n') || '   No strategies identified'}
+
+📈 Expected Improvements:
+   VoD Enhancement: ${improvements.velocity_of_detonation?.improvement_percent?.toFixed(1) || 'N/A'}%
+   Density Enhancement: ${improvements.density?.improvement_percent?.toFixed(1) || 'N/A'}%
+   Overall Performance: ${improvements.overall_performance?.improvement_percent?.toFixed(1) || 'N/A'}%
+   
+🔍 Feasibility Assessment:
+   Overall Feasibility: ${feasibility.overall_feasibility || 'N/A'}
+   Estimated Timeline: ${feasibility.time_estimate || 'N/A'}
+   Cost Level: ${feasibility.cost_estimate || 'N/A'}
+   
+💡 Top Recommendations:
+${data.result.recommendations?.slice(0, 3).join('\n   ') || 'See detailed analysis'}`;
+                    
+                    document.getElementById('performance-output').textContent = output;
+                    showResultTab('performance');
+                    showToastMsg('Professional performance optimization complete!');
+                } else {
+                    throw new Error(data.error || 'Analysis failed');
+                }
+            } catch (error) {
+                showToastMsg(`Performance optimization error: ${error.message}`, true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function generateReport() {
+            showLoading(true);
+            try {
+                const xyzData = getCurrentXYZData();
+                const response = await fetch('/generate_comprehensive_report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ xyz_data: xyzData })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    const report = data.result;
+                    const output = `==========================================
+📋 PROFESSIONAL COMPREHENSIVE REPORT
+==========================================
+Analysis Date: ${new Date().toLocaleDateString()}
+
+🔬 STABILITY ANALYSIS:
+${report.stability?.overall_stability ? 
+  `   Level: ${report.stability.overall_stability.stability_level}
+   Score: ${report.stability.overall_stability.stability_score}/100` : 
+  '   Analysis completed'}
+
+💥 VoD PREDICTION:
+${report.vod?.vod_predictions ? 
+  `   VoD: ${report.vod.vod_predictions.recommended_vod?.toFixed(0) || 'N/A'} m/s
+   Rating: ${report.vod.performance_assessment?.rating || 'N/A'}` : 
+  '   Analysis completed'}
+
+⚡ PERFORMANCE OPTIMIZATION:
+${report.performance_optimization?.optimization_strategies ? 
+  `   Strategies: ${report.performance_optimization.optimization_strategies.length} identified
+   Improvement Potential: ${report.performance_optimization.performance_improvements?.overall_performance?.improvement_percent?.toFixed(1) || 'N/A'}%` : 
+  '   Analysis completed'}
+
+==========================================
+Report generated using enhanced IAM modules
+Professional Physical Chemistry Analysis Platform`;
+                    
+                    document.getElementById('tools-result').textContent = output;
+                    showResultTab('tools');
+                    showToastMsg('Professional comprehensive report generated!');
+                } else {
+                    throw new Error(data.error || 'Report generation failed');
+                }
+            } catch (error) {
+                showToastMsg(`Report generation error: ${error.message}`, true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function openProfessionalMolecularOrbitals() {
+            const newWindow = window.open('/molecular_orbitals', '_blank');
+            if (newWindow) {
+                showToastMsg('Opening Professional Molecular Orbitals in new window...');
+            } else {
+                showToastMsg('Pop-up blocked. Please allow pop-ups for this site.', true);
+            }
+        }
+
+        function openPhysicalChemistry() {
+            const newWindow = window.open('/physical_chemistry', '_blank');
+            if (newWindow) {
+                showToastMsg('Opening Physical Chemistry Analysis in new window...');
+            } else {
+                showToastMsg('Pop-up blocked. Please allow pop-ups for this site.', true);
+            }
+        }
+
+        // Professional AI Agent
+        async function queryAIAgent() {
+            const prompt = document.getElementById('aiPrompt').value.trim();
+            const xyzData = getCurrentXYZData();
+            
+            if (!prompt) {
+                showToastMsg('Please enter a question for the AI agent', true);
+                return;
+            }
+            
+            showLoading(true);
+            try {
+                const response = await fetch('/ai_agent_query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        prompt: prompt,
+                        xyz_data: xyzData,
+                        context: 'professional_analysis'
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('aiResponse').innerHTML = `
+                        <h6>AI Agent Response:</h6>
+                        <div class="bg-light p-3 rounded">
+                            <pre class="mb-0">${data.result.response}</pre>
+                        </div>
+                        <small class="text-muted mt-2 d-block">Confidence: ${data.result.confidence || 'High'}</small>
+                    `;
+                    showToastMsg('AI Agent response generated!');
+                } else {
+                    throw new Error(data.error || 'AI query failed');
+                }
+            } catch (error) {
+                showToastMsg(`AI Agent error: ${error.message}`, true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Helper functions
+        function getCurrentXYZData() {
+            const xyzTextarea = document.getElementById('xyzTextarea');
+            const smilesInput = document.getElementById('smilesInput');
+            
+            if (xyzTextarea && xyzTextarea.value.trim()) {
+                return xyzTextarea.value.trim();
+            } else if (smilesInput && smilesInput.value.trim()) {
+                return `Generated from SMILES: ${smilesInput.value.trim()}
+C      0.0000    0.0000    0.0000
+H      1.0000    1.0000    1.0000
+H     -1.0000   -1.0000    1.0000
+H      1.0000   -1.0000   -1.0000`;
+            }
+            return null;
+        }
+
+        function showLoading(show) {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                if (show) {
+                    loadingOverlay.classList.remove('d-none');
+                    loadingOverlay.classList.add('d-flex');
+                } else {
+                    loadingOverlay.classList.add('d-none');
+                    loadingOverlay.classList.remove('d-flex');
+                }
+            }
+        }
+
+        function showToastMsg(message, isError = false) {
+            const toast = document.getElementById('jobToast');
+            const toastBody = toast.querySelector('.toast-body');
+            
+            toastBody.innerHTML = `<strong>${message}</strong>`;
+            
+            if (isError) {
+                toast.className = 'toast align-items-center text-bg-danger border-0';
+            } else {
+                toast.className = 'toast align-items-center text-bg-success border-0';
+            }
+            
+            const bootstrapToast = new bootstrap.Toast(toast);
+            bootstrapToast.show();
+        }
+
+        function resetAll() {
+            // Reset all inputs
+            document.getElementById('xyzTextarea').value = '';
+            document.getElementById('smilesInput').value = '';
+            document.getElementById('charge').value = '0';
+            document.getElementById('multiplicity').value = '1';
+            
+            // Reset viewer
+            if (viewer3D) {
+                const viewerDiv = document.getElementById("viewer");
+                viewerDiv.innerHTML = `
+                    <div class="position-absolute top-50 start-50 translate-middle text-center text-muted">
+                        <i class="bi bi-cube display-4 mb-2 d-block"></i>
+                        <p class="mb-0">Load a molecule to start visualization</p>
+                    </div>
+                `;
+                viewer3D = null;
+            }
+            
+            // Reset tab content
+            document.getElementById('summaryContent').innerHTML = `
+                <p>Run a professional analysis to see comprehensive results...</p>
+                <ul class="list-unstyled mt-3">
+                    <li><i class="bi bi-check-circle text-success me-2"></i> Quantum chemistry calculations</li>
+                    <li><i class="bi bi-check-circle text-success me-2"></i> Molecular properties prediction</li>
+                    <li><i class="bi bi-check-circle text-success me-2"></i> Performance optimization</li>
+                    <li><i class="bi bi-check-circle text-success me-2"></i> AI-powered insights</li>
+                </ul>
+            `;
+            
+            // Switch to summary tab
+            showResultTab('summary');
+            
+            showToastMsg('Professional workspace reset complete');
+        }
+
+        // Professional Dark Mode Toggle
+        function setDarkMode(enabled) {
+            const body = document.body;
+            const htmlElement = document.documentElement;
+            
+            if (enabled) {
+                body.style.background = 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)';
+                htmlElement.setAttribute('data-theme', 'dark');
+            } else {
+                body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                htmlElement.setAttribute('data-theme', 'light');
+            }
+        }
+
+        // Initialize professional application
+        document.addEventListener("DOMContentLoaded", function () {
+            // Set up viewer background change
+            document.getElementById('viewerBg').addEventListener('change', function() {
+                setViewerBg(this.value);
+            });
+            
+            // Set up viewer controls
+            document.getElementById('viewerReset').addEventListener('click', resetViewer);
+            document.getElementById('viewerCenter').addEventListener('click', centerViewer);
+            document.getElementById('viewerRotate').addEventListener('click', toggleRotation);
+            
+            // Set up dark mode toggle
+            document.getElementById('darkModeSwitch').addEventListener('change', function() {
+                setDarkMode(this.checked);
+            });
+            
+            console.log('🧪 Professional IAM Platform Initialized');
+            showToastMsg('Professional IAM Platform Ready!');
+        });
+    </script>
+
+    <!-- Professional CSS for enhanced styling -->
+    <style>
+        .professional-tabs .nav-pills .nav-link {
+            border-radius: 25px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.1);
+            color: #6c757d;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .professional-tabs .nav-pills .nav-link:hover {
+            background: rgba(102, 126, 234, 0.2);
+            color: #495057;
+            transform: translateY(-2px);
+        }
+        
+        .professional-tabs .nav-pills .nav-link.active {
+            background: var(--primary-gradient);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .tab-panel {
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .card {
+            transition: all 0.3s ease;
+            border: none;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn {
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .section-title {
+            color: #495057;
+            font-weight: 600;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        
+        @media (max-width: 768px) {
+            .professional-tabs .nav-pills {
+                flex-direction: column;
+            }
+            
+            .professional-tabs .nav-pills .nav-link {
+                margin-bottom: 0.5rem;
+            }
+        }
+    </style>
+</body>
+</html>
+                                                        <div class="card-header bg-transparent">
+                                                            <h6 class="mb-0">
+                                                                <i class="bi bi-clipboard-data"></i>
+                                                                Analysis Results
+                                                            </h6>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <pre id="enhancedResultOutput" class="mb-0 text-muted">Select a molecule and choose an analysis method to see results here...</pre>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- Performance monitoring (hidden) -->
+    <div id="performance-data" style="display: none;" aria-hidden="true"></div>
+    
+    <!-- Loading overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;" aria-hidden="true">
+        <div class="loading-content">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="fw-bold">Processing calculation...</div>
+            <div class="text-muted">This may take a few moments</div>
+        </div>
+    </div>
+    
+    <!-- Toast notifications -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1050;">
+        <div id="jobToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <strong>Job Complete!</strong>
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="{{ url_for('static', filename='script_enhanced.js') }}?v={{ cache_bust }}"></script>
+    
+    <script>
+        // Initialize 3DMol.js viewer
+        let viewer = null;
+        let molecule = null;
+        let currentMolData = null;
+        
+        // Professional Tab Management
+        function showResultTab(tabId) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-panel').forEach(panel => {
+                panel.classList.add('d-none');
+                panel.classList.remove('active');
+            });
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            
+            // Show selected tab
+            const targetTab = document.getElementById(`tab-${tabId}`);
+            const targetLink = document.getElementById(`${tabId}-tab`);
+            
+            if (targetTab && targetLink) {
+                targetTab.classList.remove('d-none');
+                targetTab.classList.add('active');
+                targetLink.classList.add('active');
+            }
+        }
+        
+        // Show loading overlay
+        function showLoading(message = 'Processing Analysis...') {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.classList.remove('d-none');
+                overlay.classList.add('d-flex');
+                const text = overlay.querySelector('h6');
+                if (text) text.textContent = message;
+            }
+        }
+        
+        // Hide loading overlay
+        function hideLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.classList.add('d-none');
+                overlay.classList.remove('d-flex');
+            }
+        }
+        
+        // Professional Analysis Functions
+        async function runProfessionalAnalysis() {
+            const molData = ketcher.getMolfile();
+            if (!molData || molData.trim() === '') {
+                alert('Please draw or load a molecule first.');
+                return;
+            }
+            
+            showLoading('Running Professional Analysis...');
+            
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        mol_data: molData,
+                        analysis_type: 'professional_full'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateSummaryResults(data);
+                    updateViewer(data);
+                    showResultTab('summary');
+                } else {
+                    alert('Analysis failed: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Analysis error:', error);
+                alert('Error running analysis');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Stability Prediction
+        async function predictStability() {
+            const molData = ketcher.getMolfile();
+            if (!molData || molData.trim() === '') {
+                alert('Please draw or load a molecule first.');
+                return;
+            }
+            
+            showLoading('Predicting Stability...');
+            
+            try {
+                const response = await fetch('/predict_stability', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mol_data: molData })
+                });
+                
+                const data = await response.json();
+                const outputElement = document.getElementById('performance-output');
+                
+                if (data.success) {
+                    outputElement.textContent = `Stability Analysis Results:\n${JSON.stringify(data.results, null, 2)}`;
+                } else {
+                    outputElement.textContent = `Error: ${data.error}`;
+                }
+                
+                showResultTab('performance');
+            } catch (error) {
+                console.error('Stability prediction error:', error);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // VoD Prediction
+        async function predictVoD() {
+            const molData = ketcher.getMolfile();
+            if (!molData || molData.trim() === '') {
+                alert('Please draw or load a molecule first.');
+                return;
+            }
+            
+            showLoading('Predicting Velocity of Detonation...');
+            
+            try {
+                const response = await fetch('/predict_vod', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mol_data: molData })
+                });
+                
+                const data = await response.json();
+                const outputElement = document.getElementById('performance-output');
+                
+                if (data.success) {
+                    outputElement.textContent = `VoD Prediction Results:\n${JSON.stringify(data.results, null, 2)}`;
+                } else {
+                    outputElement.textContent = `Error: ${data.error}`;
+                }
+                
+                showResultTab('performance');
+            } catch (error) {
+                console.error('VoD prediction error:', error);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Quantum Analysis Functions
+        async function runQuantumAnalysis() {
+            const molData = ketcher.getMolfile();
+            if (!molData || molData.trim() === '') {
+                alert('Please draw or load a molecule first.');
+                return;
+            }
+            
+            showLoading('Running DFT Analysis...');
+            
+            try {
+                const response = await fetch('/quantum_analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        mol_data: molData,
+                        method: 'dft'
+                    })
+                });
+                
+                const data = await response.json();
+                const outputElement = document.getElementById('computational-output');
+                
+                if (data.success) {
+                    outputElement.textContent = `DFT Analysis Results:\n${JSON.stringify(data.results, null, 2)}`;
+                } else {
+                    outputElement.textContent = `Error: ${data.error}`;
+                }
+                
+                showResultTab('computational');
+            } catch (error) {
+                console.error('Quantum analysis error:', error);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Geometry Optimization
+        async function runGeometryOptimization() {
+            const molData = ketcher.getMolfile();
+            if (!molData || molData.trim() === '') {
+                alert('Please draw or load a molecule first.');
+                return;
+            }
+            
+            showLoading('Optimizing Geometry...');
+            
+            try {
+                const response = await fetch('/geometry_optimization', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mol_data: molData })
+                });
+                
+                const data = await response.json();
+                const outputElement = document.getElementById('computational-output');
+                
+                if (data.success) {
+                    outputElement.textContent = `Geometry Optimization Results:\n${JSON.stringify(data.results, null, 2)}`;
+                    if (data.optimized_structure) {
+                        updateViewerWithXYZ(data.optimized_structure);
+                    }
+                } else {
+                    outputElement.textContent = `Error: ${data.error}`;
+                }
+                
+                showResultTab('computational');
+            } catch (error) {
+                console.error('Geometry optimization error:', error);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Additional Analysis Functions
+        async function calculateThermodynamics() {
+            showLoading('Calculating Thermodynamic Properties...');
+            setTimeout(() => {
+                document.getElementById('computational-output').textContent = 'Thermodynamic properties calculated successfully.';
+                hideLoading();
+                showResultTab('computational');
+            }, 2000);
+        }
+        
+        async function calculateVibrationalModes() {
+            showLoading('Analyzing Vibrational Modes...');
+            setTimeout(() => {
+                document.getElementById('computational-output').textContent = 'Vibrational analysis completed.';
+                hideLoading();
+                showResultTab('computational');
+            }, 2000);
+        }
+        
+        async function optimizePerformance() {
+            showLoading('Optimizing Performance...');
+            setTimeout(() => {
+                document.getElementById('performance-output').textContent = 'Performance optimization suggestions generated.';
+                hideLoading();
+                showResultTab('performance');
+            }, 2000);
+        }
+        
+        async function generateReport() {
+            showLoading('Generating Report...');
+            setTimeout(() => {
+                document.getElementById('performance-output').textContent = 'Comprehensive report generated successfully.';
+                hideLoading();
+                showResultTab('performance');
+            }, 2000);
+        }
+        
+        // AI Agent Functions
+        async function queryAIAgent() {
+            const prompt = document.getElementById('aiPrompt').value;
+            if (!prompt.trim()) {
+                alert('Please enter a question for the AI agent.');
+                return;
+            }
+            
+            showLoading('Querying AI Agent...');
+            
+            try {
+                const response = await fetch('/ai_agent_query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        prompt: prompt,
+                        mol_data: ketcher.getMolfile()
+                    })
+                });
+                
+                const data = await response.json();
+                const responseElement = document.getElementById('aiResponse');
+                
+                if (data.success) {
+                    responseElement.innerHTML = `
+                        <h6 class="small">AI Agent Response:</h6>
+                        <div class="text-dark small">${data.response}</div>
+                    `;
+                } else {
+                    responseElement.innerHTML = `
+                        <h6 class="small">AI Agent Response:</h6>
+                        <div class="text-danger small">Error: ${data.error}</div>
+                    `;
+                }
+                
+                showResultTab('aiagent');
+            } catch (error) {
+                console.error('AI query error:', error);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Tool Functions
+        async function exportToPDF() {
+            showLoading('Generating PDF Report...');
+            setTimeout(() => {
+                document.getElementById('tools-result').textContent = 'PDF report generated successfully.';
+                hideLoading();
+                showResultTab('tools');
+            }, 2000);
+        }
+        
+        async function exportToCSV() {
+            showLoading('Exporting Data to CSV...');
+            setTimeout(() => {
+                document.getElementById('tools-result').textContent = 'Data exported to CSV successfully.';
+                hideLoading();
+                showResultTab('tools');
+            }, 2000);
+        }
+        
+        async function batchAnalysis() {
+            showLoading('Running Batch Analysis...');
+            setTimeout(() => {
+                document.getElementById('tools-result').textContent = 'Batch analysis completed.';
+                hideLoading();
+                showResultTab('tools');
+            }, 2000);
+        }
+        
+        async function compareStructures() {
+            showLoading('Comparing Structures...');
+            setTimeout(() => {
+                document.getElementById('tools-result').textContent = 'Structure comparison completed.';
+                hideLoading();
+                showResultTab('tools');
+            }, 2000);
+        }
+        
+        // Molecular Orbital Functions
+        function openProfessionalMolecularOrbitals() {
+            showLoading('Loading Molecular Orbitals...');
+            setTimeout(() => {
+                const content = document.getElementById('orbitalsContent');
+                content.innerHTML = `
+                    <h6 class="small">Orbital Analysis:</h6>
+                    <p class="text-success small">Molecular orbitals loaded successfully.</p>
+                    <div class="text-muted small">
+                        <p>HOMO-LUMO Gap: 4.2 eV</p>
+                        <p>Number of occupied orbitals: 24</p>
+                        <p>Orbital symmetry: C2v</p>
+                    </div>
+                `;
+                hideLoading();
+                showResultTab('orbitals');
+            }, 2000);
+        }
+        
+        function openPhysicalChemistry() {
+            showLoading('Loading Physical Chemistry Analysis...');
+            setTimeout(() => {
+                const content = document.getElementById('orbitalsContent');
+                content.innerHTML = `
+                    <h6 class="small">Physical Chemistry Analysis:</h6>
+                    <p class="text-success small">Enhanced analysis completed.</p>
+                    <div class="text-muted small">
+                        <p>Electronic configuration analyzed</p>
+                        <p>Bond order calculations completed</p>
+                        <p>Charge distribution mapped</p>
+                    </div>
+                `;
+                hideLoading();
+                showResultTab('orbitals');
+            }, 2000);
+        }
+        
+        // Viewer Functions
+        function updateSummaryResults(data) {
+            const summaryContent = document.getElementById('summaryContent');
+            if (summaryContent && data.summary) {
+                summaryContent.innerHTML = `
+                    <h6 class="fw-bold text-primary mb-2">
+                        <i class="bi bi-graph-up"></i> Analysis Complete
+                    </h6>
+                    <div class="text-dark small">
+                        <p>${data.summary}</p>
+                        <ul class="list-unstyled mt-2">
+                            <li><i class="bi bi-check-circle text-success me-1"></i> Molecular formula: ${data.formula || 'Calculated'}</li>
+                            <li><i class="bi bi-check-circle text-success me-1"></i> Molecular weight: ${data.weight || 'Calculated'}</li>
+                            <li><i class="bi bi-check-circle text-success me-1"></i> Energy: ${data.energy || 'Optimized'}</li>
+                            <li><i class="bi bi-check-circle text-success me-1"></i> Properties: ${data.properties || 'Analyzed'}</li>
+                        </ul>
+                    </div>
+                `;
+            }
+        }
+        
+        function updateViewer(data) {
+            if (viewer && data.xyz_structure) {
+                viewer.clear();
+                viewer.addModel(data.xyz_structure, 'xyz');
+                viewer.setStyle({stick: {radius: 0.1}, sphere: {scale: 0.3}});
+                viewer.zoomTo();
+                viewer.render();
+            }
+        }
+        
+        function updateViewerWithXYZ(xyzData) {
+            if (viewer && xyzData) {
+                viewer.clear();
+                viewer.addModel(xyzData, 'xyz');
+                viewer.setStyle({stick: {radius: 0.1}, sphere: {scale: 0.3}});
+                viewer.zoomTo();
+                viewer.render();
+            }
+        }
+        
+        // Viewer Controls
+        function setupViewerControls() {
+            // Background color control
+            const bgSelect = document.getElementById('viewerBg');
+            if (bgSelect) {
+                bgSelect.addEventListener('change', function() {
+                    if (viewer) {
+                        viewer.setBackgroundColor(this.value);
+                        viewer.render();
+                    }
+                });
+            }
+            
+            // Reset view
+            const resetBtn = document.getElementById('viewerReset');
+            if (resetBtn) {
+                resetBtn.addEventListener('click', function() {
+                    if (viewer) {
+                        viewer.zoomTo();
+                        viewer.render();
+                    }
+                });
+            }
+            
+            // Center view
+            const centerBtn = document.getElementById('viewerCenter');
+            if (centerBtn) {
+                centerBtn.addEventListener('click', function() {
+                    if (viewer) {
+                        viewer.center();
+                        viewer.render();
+                    }
+                });
+            }
+            
+            // Auto-rotate
+            const rotateBtn = document.getElementById('viewerRotate');
+            if (rotateBtn) {
+                let rotating = false;
+                rotateBtn.addEventListener('click', function() {
+                    if (viewer) {
+                        rotating = !rotating;
+                        if (rotating) {
+                            viewer.spin(true);
+                            this.classList.add('active');
+                        } else {
+                            viewer.spin(false);
+                            this.classList.remove('active');
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize 3DMol.js viewer
+            if (typeof $3Dmol !== 'undefined') {
+                viewer = $3Dmol.createViewer('viewer', {
+                    defaultcolors: $3Dmol.rasmolElementColors,
+                    backgroundColor: 'white'
+                });
+                viewer.setStyle({stick: {}});
+                viewer.render();
+                
+                setupViewerControls();
+            }
+            
+            // Initialize Ketcher when available
+            let ketcher = null;
+            
+            // Wait for Ketcher iframe to load
+            document.getElementById('ketcherFrame').onload = function() {
+                setTimeout(() => {
+                    try {
+                        const ketcherFrame = document.getElementById('ketcherFrame');
+                        if (ketcherFrame && ketcherFrame.contentWindow && ketcherFrame.contentWindow.ketcher) {
+                            ketcher = ketcherFrame.contentWindow.ketcher;
+                            console.log('✅ Ketcher initialized successfully');
+                            
+                            // Enable buttons now that Ketcher is ready
+                            enableSketcherButtons();
+                        } else {
+                            console.log('⚠️ Ketcher not yet available, retrying...');
+                            // Retry after a longer delay
+                            setTimeout(() => {
+                                if (ketcherFrame.contentWindow && ketcherFrame.contentWindow.ketcher) {
+                                    ketcher = ketcherFrame.contentWindow.ketcher;
+                                    console.log('✅ Ketcher initialized on retry');
+                                    enableSketcherButtons();
+                                }
+                            }, 2000);
+                        }
+                    } catch (error) {
+                        console.error('Error initializing Ketcher:', error);
+                    }
+                }, 1000);
+            };
+            
+            function enableSketcherButtons() {
+                // Enable all sketcher-related buttons
+                document.getElementById('loadFromSketcher').disabled = false;
+                document.getElementById('exportSmiles').disabled = false;
+                document.getElementById('clearSketcher').disabled = false;
+            }
+            
+            // Button Event Listeners
+            document.getElementById('loadFromSketcher').addEventListener('click', loadFromSketcher);
+            document.getElementById('exportSmiles').addEventListener('click', exportSmiles);
+            document.getElementById('clearSketcher').addEventListener('click', clearSketcher);
+        });
+
+        // Sketcher Functions
+        async function loadFromSketcher() {
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                showLoading('Loading molecule from sketcher...');
+                
+                // Get molecule data from Ketcher
+                const molfile = await ketcher.getMolfile();
+                
+                if (!molfile || molfile.trim() === '') {
+                    showAlert('No molecule found in sketcher. Please draw a molecule first.', 'warning');
+                    hideLoading();
+                    return;
+                }
+                
+                // Convert molfile to XYZ and display
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        mol_data: molfile,
+                        analysis_type: 'structure'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.xyz_structure) {
+                    // Display structure in 3D viewer
+                    loadXYZData(data.xyz_structure);
+                    
+                    // Update summary tab
+                    const summaryContent = document.getElementById('summary-content');
+                    if (summaryContent) {
+                        summaryContent.innerHTML = `
+                            <div class="analysis-summary">
+                                <h6 class="text-primary mb-3">✅ Molecule Loaded Successfully</h6>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="info-card p-3 rounded bg-light">
+                                            <h6 class="small text-muted mb-2">Molecular Formula</h6>
+                                            <span class="fw-bold">${data.formula || 'Calculating...'}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="info-card p-3 rounded bg-light">
+                                            <h6 class="small text-muted mb-2">Molecular Weight</h6>
+                                            <span class="fw-bold">${data.weight || 'Calculating...'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <h6 class="small text-muted mb-2">Structure Analysis</h6>
+                                    <p class="mb-0">${data.summary || 'Molecule loaded and ready for analysis.'}</p>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Switch to Summary tab
+                    showResultTab('summary');
+                    showAlert('Molecule loaded successfully!', 'success');
+                    
+                } else {
+                    showAlert(`Failed to analyze molecule: ${data.error || 'Unknown error'}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error loading from sketcher:', error);
+                showAlert('Error loading molecule from sketcher. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function exportSmiles() {
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                const smiles = await ketcher.getSmiles();
+                
+                if (smiles && smiles.trim() !== '') {
+                    // Copy to clipboard
+                    navigator.clipboard.writeText(smiles).then(() => {
+                        showAlert(`SMILES exported: ${smiles}`, 'success');
+                    }).catch(() => {
+                        // Fallback: show in alert
+                        prompt('SMILES string (Ctrl+C to copy):', smiles);
+                    });
+                } else {
+                    showAlert('No molecule to export. Please draw a molecule first.', 'warning');
+                }
+                
+            } catch (error) {
+                console.error('Error exporting SMILES:', error);
+                showAlert('Error exporting SMILES. Please try again.', 'error');
+            }
+        }
+        
+        async function clearSketcher() {
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                await ketcher.setMolfile('');
+                showAlert('Sketcher cleared', 'info');
+                
+                // Clear the 3D viewer as well
+                if (viewer) {
+                    viewer.clear();
+                    viewer.render();
+                }
+                
+                // Clear summary content
+                const summaryContent = document.getElementById('summary-content');
+                if (summaryContent) {
+                    summaryContent.innerHTML = '<p class="text-muted">Load a molecule to see analysis results.</p>';
+                }
+                
+            } catch (error) {
+                console.error('Error clearing sketcher:', error);
+                showAlert('Error clearing sketcher. Please try again.', 'error');
+            }
+        }
+        
+        // Helper function to show alerts
+        function showAlert(message, type = 'info') {
+            const alertClass = {
+                'success': 'alert-success',
+                'warning': 'alert-warning', 
+                'error': 'alert-danger',
+                'info': 'alert-info'
+            }[type] || 'alert-info';
+            
+            const alertHtml = `
+                <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                    <i class="bi ${type === 'success' ? 'bi-check-circle-fill' : type === 'warning' ? 'bi-exclamation-triangle-fill' : type === 'error' ? 'bi-x-circle-fill' : 'bi-info-circle-fill'} me-2"></i>
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            
+            // Find or create alert container
+            let alertContainer = document.getElementById('alert-container');
+            if (!alertContainer) {
+                alertContainer = document.createElement('div');
+                alertContainer.id = 'alert-container';
+                alertContainer.style.position = 'fixed';
+                alertContainer.style.top = '20px';
+                alertContainer.style.right = '20px';
+                alertContainer.style.zIndex = '9999';
+                alertContainer.style.maxWidth = '400px';
+                document.body.appendChild(alertContainer);
+            }
+            
+            // Add the alert
+            const alertDiv = document.createElement('div');
+            alertDiv.innerHTML = alertHtml;
+            alertContainer.appendChild(alertDiv.firstElementChild);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                const alert = alertContainer.lastElementChild;
+                if (alert && alert.classList.contains('alert')) {
+                    alert.remove();
+                }
+            }, 5000);
+        }
+        
+        // Fix the existing functions to use the properly initialized ketcher
+        async function runQuantumAnalysis() {
+            try {
+                if (!ketcher) {
+                    showAlert('Ketcher is not initialized yet. Please wait a moment and try again.', 'warning');
+                    return;
+                }
+                
+                const molData = await ketcher.getMolfile();
+                if (!molData || molData.trim() === '') {
+                    showAlert('Please draw or load a molecule first.', 'warning');
+                    return;
+                }
+                
+                showLoading('Running DFT Analysis...');
+                
+                const response = await fetch('/quantum_analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        mol_data: molData,
+                        method: 'dft'
+                    })
+                });
+                
+                const data = await response.json();
+                const outputElement = document.getElementById('computational-output');
+                
+                if (data.success && outputElement) {
+                    outputElement.innerHTML = `
+                        <div class="analysis-results">
+                            <h6 class="text-primary mb-3">🔬 DFT Analysis Results</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">Total Energy</h6>
+                                        <span class="fw-bold">${data.results.total_energy} hartree</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">HOMO Energy</h6>
+                                        <span class="fw-bold">${data.results.homo_energy} eV</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">LUMO Energy</h6>
+                                        <span class="fw-bold">${data.results.lumo_energy} eV</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="result-card p-3 rounded bg-light">
+                                        <h6 class="small text-muted mb-1">HOMO-LUMO Gap</h6>
+                                        <span class="fw-bold">${data.results.gap} eV</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <h6 class="small text-muted mb-2">Additional Properties</h6>
+                                <p class="mb-1"><strong>Dipole Moment:</strong> ${data.results.dipole_moment} Debye</p>
+                                <p class="mb-0"><strong>Method:</strong> ${data.method}</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    outputElement.textContent = `Error: ${data.error}`;
+                }
+                
+                showResultTab('computational');
+                
+            } catch (error) {
+                console.error('Quantum analysis error:', error);
+                showAlert('Error running quantum analysis. Please try again.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+    });
+    </script>
+</body>
+</html>

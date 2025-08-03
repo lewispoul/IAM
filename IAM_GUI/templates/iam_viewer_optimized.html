@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="IAM - Intelligent Analysis & Modeling Platform for molecular analysis and explosive property prediction">
+    <meta name="keywords" content="molecular modeling, quantum chemistry, explosive analysis, detonation velocity">
+    <meta name="author" content="IAM Development Team">
+    
+    <title>IAM – Intelligent Analysis & Modeling Platform</title>
+    
+    <!-- Preconnect to external domains for performance -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://3dmol.org" crossorigin>
+    
+    <!-- Critical CSS for above-the-fold content -->
+    <style>
+        /* Critical CSS for initial render */
+        body { 
+            margin: 0; 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+            background: #f8fafc; 
+            color: #1f2937;
+        }
+        .header-bar { 
+            background: linear-gradient(135deg, #2563eb, #1d4ed8); 
+            color: white; 
+            padding: 1rem 2rem; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+        }
+        .spinner { 
+            display: inline-block; 
+            width: 20px; 
+            height: 20px; 
+            border: 3px solid #f3f3f3; 
+            border-top: 3px solid #3498db; 
+            border-radius: 50%; 
+            animation: spin 1s linear infinite; 
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Google Fonts for better typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Main optimized stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style_optimized.css') }}">
+    
+    <!-- Favicon and PWA icons -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🧪%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+    <!-- Header with optimized layout -->
+    <header class="header-bar">
+        <div class="d-flex align-items-center gap-3">
+            <div class="header-icon">🧪</div>
+            <h1 class="mb-0">IAM – Intelligent Analysis & Modeling</h1>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="darkModeSwitch" role="switch" aria-label="Toggle dark mode">
+                <label class="form-check-label text-white" for="darkModeSwitch">
+                    <i class="bi bi-moon-fill"></i>
+                </label>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main application container -->
+    <main class="main-container container-fluid">
+        <div class="row main-row">
+            <!-- Left Panel: Input and Controls -->
+            <div class="col-lg-5 col-xl-4 panel-left">
+                <div class="panel-content">
+                    <!-- Molecular Sketcher Section -->
+                    <section class="mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-pencil-square text-primary"></i>
+                            Molecular Sketcher
+                        </h5>
+                        <div class="sketcher-container">
+                            <iframe 
+                                id="ketcherFrame"
+                                src="/static/ketcher/index.html"
+                                width="100%" 
+                                height="320"
+                                title="Ketcher Molecular Editor"
+                                loading="lazy">
+                            </iframe>
+                        </div>
+                        
+                        <!-- Sketcher action buttons -->
+                        <div class="btn-group mt-3 w-100" role="group" aria-label="Sketcher actions">
+                            <button id="loadFromSketcher" class="btn btn-primary btn-sm" type="button">
+                                <i class="bi bi-download"></i>
+                                Load Structure
+                            </button>
+                            <button id="exportSmiles" class="btn btn-outline-secondary btn-sm" type="button" title="Export as SMILES">
+                                <i class="bi bi-file-earmark-code"></i>
+                                SMILES
+                            </button>
+                            <button id="exportMol" class="btn btn-outline-secondary btn-sm" type="button" title="Export as MOL">
+                                <i class="bi bi-file-earmark-text"></i>
+                                MOL
+                            </button>
+                        </div>
+                    </section>
+
+                    <!-- Input Methods Section -->
+                    <section class="mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-input-cursor text-success"></i>
+                            Input Methods
+                        </h5>
+                        
+                        <!-- SMILES Input -->
+                        <div class="mb-3">
+                            <label for="smilesPaste" class="form-label">SMILES String</label>
+                            <div class="input-group">
+                                <input 
+                                    id="smilesPaste" 
+                                    class="form-control" 
+                                    type="text"
+                                    placeholder="Enter SMILES notation (e.g., CCO for ethanol)"
+                                    aria-describedby="smiles-help">
+                                <button id="importSmiles" class="btn btn-success" type="button" title="Import SMILES">
+                                    <i class="bi bi-arrow-right"></i>
+                                </button>
+                            </div>
+                            <div id="smiles-help" class="form-text">Simplified molecular-input line-entry system</div>
+                        </div>
+
+                        <!-- MOL/XYZ Input -->
+                        <div class="mb-3">
+                            <label for="molPaste" class="form-label">MOL/XYZ Data</label>
+                            <div class="input-group">
+                                <textarea 
+                                    id="molPaste" 
+                                    class="form-control" 
+                                    rows="4" 
+                                    placeholder="Paste MOL file or XYZ coordinates here..."
+                                    aria-describedby="mol-help"></textarea>
+                                <button id="importMol" class="btn btn-success align-self-start" type="button" title="Import MOL/XYZ">
+                                    <i class="bi bi-arrow-right"></i>
+                                </button>
+                            </div>
+                            <div id="mol-help" class="form-text">Supports MOL (V2000/V3000) and XYZ coordinate formats</div>
+                        </div>
+
+                        <!-- File Upload -->
+                        <div class="mb-3">
+                            <label for="xyzFile" class="form-label">Upload File</label>
+                            <input 
+                                type="file" 
+                                id="xyzFile" 
+                                class="form-control" 
+                                accept=".xyz,.mol,.sdf,.smi,.smiles"
+                                aria-describedby="file-help">
+                            <div id="file-help" class="form-text">Supported: .xyz, .mol, .sdf, .smi, .smiles</div>
+                        </div>
+                    </section>
+
+                    <!-- Calculation Parameters -->
+                    <section class="mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-gear text-warning"></i>
+                            Calculation Parameters
+                        </h5>
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <label for="method" class="form-label">Method</label>
+                                <select id="method" class="form-select" aria-describedby="method-help">
+                                    <option value="XTB" selected>xTB (Extended Tight Binding)</option>
+                                    <option value="DFT" disabled>DFT (Coming Soon)</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label for="basis" class="form-label">Basis Set</label>
+                                <select id="basis" class="form-select">
+                                    <option value="def2-SVP" selected>def2-SVP</option>
+                                    <option value="def2-TZVP">def2-TZVP</option>
+                                    <option value="6-31G*">6-31G*</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label for="charge" class="form-label">Charge</label>
+                                <input id="charge" class="form-control" type="number" value="0" min="-5" max="5" step="1">
+                            </div>
+                            <div class="col-6">
+                                <label for="multiplicity" class="form-label">Multiplicity</label>
+                                <input id="multiplicity" class="form-control" type="number" value="1" min="1" max="10" step="1">
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Action Buttons -->
+                    <section class="mb-4">
+                        <div class="d-grid gap-2">
+                            <button id="launchIAMBtn" class="btn btn-primary btn-lg" type="button">
+                                <i class="bi bi-play-circle"></i>
+                                Submit Calculation
+                            </button>
+                            <button id="resetBtn" class="btn btn-outline-secondary" type="button">
+                                <i class="bi bi-arrow-clockwise"></i>
+                                Reset Form
+                            </button>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- Right Panel: Visualization and Results -->
+            <div class="col-lg-7 col-xl-8 panel-right">
+                <div class="panel-content">
+                    <!-- 3D Viewer Section -->
+                    <section class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="section-title mb-0">
+                                <i class="bi bi-eye text-info"></i>
+                                3D Molecular Viewer
+                            </h5>
+                            <div class="viewer-controls">
+                                <div class="d-flex align-items-center gap-2">
+                                    <label for="viewerBg" class="form-label mb-0 small">Background:</label>
+                                    <select id="viewerBg" class="form-select form-select-sm" style="width: auto;">
+                                        <option value="white">White</option>
+                                        <option value="#f1f5f9">Light Gray</option>
+                                        <option value="#e0f2fe">Light Blue</option>
+                                        <option value="transparent">Transparent</option>
+                                    </select>
+                                    <button id="viewerReset" class="btn btn-outline-secondary btn-sm" type="button" title="Reset view">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                    <button id="viewerCenter" class="btn btn-outline-secondary btn-sm" type="button" title="Center molecule">
+                                        <i class="bi bi-bullseye"></i>
+                                    </button>
+                                    <button id="viewerRotate" class="btn btn-outline-secondary btn-sm" type="button" title="Toggle auto-rotation">
+                                        <i class="bi bi-arrow-repeat"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="viewer-container">
+                            <div id="viewer" role="img" aria-label="3D molecular structure viewer"></div>
+                        </div>
+                    </section>
+
+                    <!-- Advanced Controls (Collapsible) -->
+                    <section class="mb-4">
+                        <div class="accordion" id="advancedAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#advancedControls" aria-expanded="false" aria-controls="advancedControls">
+                                        <i class="bi bi-sliders me-2"></i>
+                                        Advanced Controls
+                                    </button>
+                                </h2>
+                                <div id="advancedControls" class="accordion-collapse collapse" data-bs-parent="#advancedAccordion">
+                                    <div class="accordion-body">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="labelAtoms">
+                                                    <label class="form-check-label" for="labelAtoms">Show atom labels</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="showBonds">
+                                                    <label class="form-check-label" for="showBonds">Highlight bonds</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="d-grid gap-2">
+                                                    <button id="optimizeStructure" class="btn btn-outline-success btn-sm" type="button">
+                                                        <i class="bi bi-gear"></i>
+                                                        Optimize Structure
+                                                    </button>
+                                                    <button id="saveStructure" class="btn btn-outline-secondary btn-sm" type="button">
+                                                        <i class="bi bi-download"></i>
+                                                        Save Structure
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Results Section -->
+                    <section class="results-section">
+                        <h5 class="section-title mb-3">
+                            <i class="bi bi-clipboard-data text-success"></i>
+                            Results & Analysis
+                        </h5>
+                        
+                        <!-- Enhanced Tab Navigation -->
+                        <nav class="custom-tabs" role="tablist">
+                            <button class="tab-btn active" onclick="showResultTab('summary')" role="tab" aria-selected="true" aria-controls="tab-summary">
+                                <i class="bi bi-list-ul"></i>
+                                Summary
+                            </button>
+                            <button class="tab-btn" onclick="showResultTab('output')" role="tab" aria-selected="false" aria-controls="tab-output">
+                                <i class="bi bi-file-text"></i>
+                                Output
+                            </button>
+                            <button class="tab-btn" onclick="showResultTab('log')" role="tab" aria-selected="false" aria-controls="tab-log">
+                                <i class="bi bi-terminal"></i>
+                                Log
+                            </button>
+                            <button class="tab-btn" onclick="showResultTab('tools')" role="tab" aria-selected="false" aria-controls="tab-tools">
+                                <i class="bi bi-tools"></i>
+                                IAM Tools
+                            </button>
+                        </nav>
+
+                        <!-- Tab Content Panels -->
+                        <div class="tab-contents">
+                            <!-- Summary Tab -->
+                            <div class="tab-panel active" id="tab-summary" role="tabpanel" aria-labelledby="summary-tab">
+                                <div class="p-4">
+                                    <div id="summaryContent" class="summary-content">
+                                        <div class="text-center text-muted">
+                                            <i class="bi bi-play-circle display-4 mb-3 d-block"></i>
+                                            <p>Run a calculation to see detailed results and analysis here.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Output Tab -->
+                            <div class="tab-panel d-none" id="tab-output" role="tabpanel" aria-labelledby="output-tab">
+                                <div class="p-4">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h6 class="mb-0">Raw Output File</h6>
+                                        <button class="btn btn-outline-secondary btn-sm" onclick="Utils.copyToClipboard(document.getElementById('outputFileContent').textContent)" title="Copy output">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                    <pre id="outputFileContent" class="output-content">Output will appear here after calculation.</pre>
+                                </div>
+                            </div>
+
+                            <!-- Log Tab -->
+                            <div class="tab-panel d-none" id="tab-log" role="tabpanel" aria-labelledby="log-tab">
+                                <div class="p-4">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h6 class="mb-0">Calculation Log</h6>
+                                        <button class="btn btn-outline-secondary btn-sm" onclick="Utils.copyToClipboard(document.getElementById('logFileContent').textContent)" title="Copy log">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                    <pre id="logFileContent" class="output-content">Log will appear here after calculation.</pre>
+                                </div>
+                            </div>
+
+                            <!-- IAM Tools Tab -->
+                            <div class="tab-panel d-none" id="tab-tools" role="tabpanel" aria-labelledby="tools-tab">
+                                <div class="iam-tools-container">
+                                    <h5 class="tools-title">
+                                        <i class="bi bi-tools"></i>
+                                        Explosive Analysis Tools
+                                    </h5>
+                                    
+                                    <div class="tools-input-group">
+                                        <label for="smilesInput" class="form-label">Molecule Input</label>
+                                        <input type="text" id="smilesInput" class="form-control" placeholder="Enter SMILES or paste structure data" aria-describedby="tools-help">
+                                        <div id="tools-help" class="form-text">Use the same molecule from the sketcher or enter manually</div>
+                                    </div>
+
+                                    <div class="tools-button-grid">
+                                        <button id="predictStability" class="btn btn-success" type="button">
+                                            <i class="bi bi-shield-check"></i>
+                                            Predict Stability
+                                        </button>
+                                        <button id="predictVoD" class="btn btn-info" type="button">
+                                            <i class="bi bi-speedometer2"></i>
+                                            Predict VoD
+                                        </button>
+                                        <button id="optimizePerformance" class="btn btn-warning" type="button">
+                                            <i class="bi bi-lightning"></i>
+                                            Optimize Performance
+                                        </button>
+                                        <button id="generateReport" class="btn btn-primary" type="button">
+                                            <i class="bi bi-file-earmark-text"></i>
+                                            Generate Report
+                                        </button>
+                                    </div>
+
+                                    <div class="tools-results">
+                                        <h6>
+                                            <i class="bi bi-graph-up"></i>
+                                            Analysis Results
+                                        </h6>
+                                        <pre id="result-output" class="result-output">Tool results will appear here after analysis.</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Loading Overlay -->
+                <div id="loadingOverlay" class="loading-overlay position-absolute top-0 start-0 w-100 h-100 d-none align-items-center justify-content-center">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <div class="fw-bold fs-5">Processing calculation...</div>
+                        <div class="text-muted">This may take a few moments</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-5 py-4 bg-light border-top">
+        <div class="container text-center text-muted small">
+            <p class="mb-1">IAM - Intelligent Analysis & Modeling Platform</p>
+            <p class="mb-0">Enhanced with quantum chemistry calculations and explosive property prediction</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <!-- 3Dmol.js for molecular visualization -->
+    <script src="https://3Dmol.org/build/3Dmol-min.js" defer></script>
+    
+    <!-- Bootstrap 5 JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous" defer></script>
+    
+    <!-- Main optimized application script -->
+    <script src="{{ url_for('static', filename='script_optimized.js') }}" defer></script>
+
+    <!-- Service Worker for offline capability (optional) -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').catch(function(error) {
+                    console.log('ServiceWorker registration failed: ', error);
+                });
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IAM Performance Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .metric-card {
+            transition: transform 0.2s;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+        }
+        .status-healthy {
+            color: #28a745;
+        }
+        .status-warning {
+            color: #ffc107;
+        }
+        .status-error {
+            color: #dc3545;
+        }
+        .progress-bar-custom {
+            height: 8px;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fas fa-chart-line"></i> IAM Performance Dashboard
+            </span>
+            <a href="/" class="btn btn-outline-light btn-sm">
+                <i class="fas fa-arrow-left"></i> Back to IAM
+            </a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Health Status -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-heartbeat"></i> System Health</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="health-status" class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Metrics -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card metric-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-microchip fa-2x mb-3 text-primary"></i>
+                        <h5>CPU Usage</h5>
+                        <h3 id="cpu-usage" class="text-primary">--%</h3>
+                        <div class="progress progress-bar-custom">
+                            <div id="cpu-progress" class="progress-bar bg-primary" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card metric-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-memory fa-2x mb-3 text-success"></i>
+                        <h5>Memory Usage</h5>
+                        <h3 id="memory-usage" class="text-success">--%</h3>
+                        <div class="progress progress-bar-custom">
+                            <div id="memory-progress" class="progress-bar bg-success" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card metric-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-hdd fa-2x mb-3 text-warning"></i>
+                        <h5>Disk Usage</h5>
+                        <h3 id="disk-usage" class="text-warning">--%</h3>
+                        <div class="progress progress-bar-custom">
+                            <div id="disk-progress" class="progress-bar bg-warning" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Application Metrics -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-tachometer-alt"></i> Application Performance</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h6>Total Requests</h6>
+                                    <h4 id="total-requests" class="text-info">--</h4>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h6>Success Rate</h6>
+                                    <h4 id="success-rate" class="text-success">--%</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h6>Avg Response Time</h6>
+                                    <h4 id="avg-response-time" class="text-primary">-- ms</h4>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h6>Error Count</h6>
+                                    <h4 id="error-count" class="text-danger">--</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-database"></i> Cache Performance</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h6>Cache Hits</h6>
+                                    <h4 id="cache-hits" class="text-success">--</h4>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h6>Cache Misses</h6>
+                                    <h4 id="cache-misses" class="text-warning">--</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h6>Hit Rate</h6>
+                                    <h4 id="hit-rate" class="text-info">--%</h4>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h6>Cache Size</h6>
+                                    <h4 id="cache-size" class="text-primary">--</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center mt-3">
+                            <button id="clear-cache-btn" class="btn btn-outline-danger btn-sm">
+                                <i class="fas fa-trash"></i> Clear Cache
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Component Status -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-cogs"></i> Component Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="component-status" class="row">
+                            <!-- Component status will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-tools"></i> Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button id="refresh-btn" class="btn btn-primary">
+                                <i class="fas fa-sync"></i> Refresh Metrics
+                            </button>
+                            <button id="download-metrics-btn" class="btn btn-outline-info">
+                                <i class="fas fa-download"></i> Download Metrics
+                            </button>
+                            <button id="test-health-btn" class="btn btn-outline-success">
+                                <i class="fas fa-stethoscope"></i> Test Health
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        class PerformanceDashboard {
+            constructor() {
+                this.init();
+                this.loadMetrics();
+                this.setupEventListeners();
+                this.startAutoRefresh();
+            }
+
+            init() {
+                console.log('Performance Dashboard initialized');
+            }
+
+            setupEventListeners() {
+                document.getElementById('refresh-btn').addEventListener('click', () => {
+                    this.loadMetrics();
+                });
+
+                document.getElementById('clear-cache-btn').addEventListener('click', () => {
+                    this.clearCache();
+                });
+
+                document.getElementById('download-metrics-btn').addEventListener('click', () => {
+                    this.downloadMetrics();
+                });
+
+                document.getElementById('test-health-btn').addEventListener('click', () => {
+                    this.testHealth();
+                });
+            }
+
+            async loadMetrics() {
+                try {
+                    const [metricsResponse, healthResponse] = await Promise.all([
+                        fetch('/api/performance'),
+                        fetch('/api/health')
+                    ]);
+
+                    if (metricsResponse.ok) {
+                        const metrics = await metricsResponse.json();
+                        this.updateSystemMetrics(metrics.system);
+                        if (metrics.application) {
+                            this.updateApplicationMetrics(metrics.application);
+                        }
+                        if (metrics.cache) {
+                            this.updateCacheMetrics(metrics.cache);
+                        }
+                    }
+
+                    if (healthResponse.ok) {
+                        const health = await healthResponse.json();
+                        this.updateHealthStatus(health);
+                        this.updateComponentStatus(health.components);
+                    }
+                } catch (error) {
+                    console.error('Error loading metrics:', error);
+                    this.showError('Failed to load performance metrics');
+                }
+            }
+
+            updateSystemMetrics(system) {
+                // CPU
+                document.getElementById('cpu-usage').textContent = `${system.cpu_percent.toFixed(1)}%`;
+                document.getElementById('cpu-progress').style.width = `${system.cpu_percent}%`;
+
+                // Memory
+                document.getElementById('memory-usage').textContent = `${system.memory_percent.toFixed(1)}%`;
+                document.getElementById('memory-progress').style.width = `${system.memory_percent}%`;
+
+                // Disk
+                document.getElementById('disk-usage').textContent = `${system.disk_percent.toFixed(1)}%`;
+                document.getElementById('disk-progress').style.width = `${system.disk_percent}%`;
+
+                // Update progress bar colors based on usage
+                this.updateProgressBarColor('cpu-progress', system.cpu_percent);
+                this.updateProgressBarColor('memory-progress', system.memory_percent);
+                this.updateProgressBarColor('disk-progress', system.disk_percent);
+            }
+
+            updateApplicationMetrics(app) {
+                document.getElementById('total-requests').textContent = app.requests_total || 0;
+                document.getElementById('error-count').textContent = app.requests_error || 0;
+                
+                const successRate = app.requests_total > 0 ? 
+                    ((app.requests_success || 0) / app.requests_total * 100).toFixed(1) : 0;
+                document.getElementById('success-rate').textContent = `${successRate}%`;
+                
+                const avgResponseTime = ((app.average_response_time || 0) * 1000).toFixed(1);
+                document.getElementById('avg-response-time').textContent = `${avgResponseTime} ms`;
+            }
+
+            updateCacheMetrics(cache) {
+                document.getElementById('cache-hits').textContent = cache.hits || 0;
+                document.getElementById('cache-misses').textContent = cache.misses || 0;
+                document.getElementById('hit-rate').textContent = `${((cache.hit_rate || 0) * 100).toFixed(1)}%`;
+                document.getElementById('cache-size').textContent = cache.total_entries || 0;
+            }
+
+            updateHealthStatus(health) {
+                const statusEl = document.getElementById('health-status');
+                const isHealthy = health.status === 'healthy';
+                
+                statusEl.innerHTML = `
+                    <div class="d-flex align-items-center justify-content-center">
+                        <i class="fas fa-${isHealthy ? 'check-circle' : 'exclamation-triangle'} fa-2x me-3 ${isHealthy ? 'status-healthy' : 'status-error'}"></i>
+                        <div>
+                            <h4 class="${isHealthy ? 'status-healthy' : 'status-error'}">${health.status.toUpperCase()}</h4>
+                            <small class="text-muted">Last checked: ${new Date(health.timestamp * 1000).toLocaleString()}</small>
+                            ${health.uptime ? `<br><small class="text-muted">Uptime: ${(health.uptime / 60).toFixed(1)} minutes</small>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            updateComponentStatus(components) {
+                const container = document.getElementById('component-status');
+                container.innerHTML = '';
+
+                Object.entries(components).forEach(([name, status]) => {
+                    const col = document.createElement('div');
+                    col.className = 'col-md-3 col-sm-6 mb-2';
+                    col.innerHTML = `
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-${status ? 'check-circle status-healthy' : 'times-circle status-error'} me-2"></i>
+                            <span>${name.replace('_', ' ').toUpperCase()}</span>
+                        </div>
+                    `;
+                    container.appendChild(col);
+                });
+            }
+
+            updateProgressBarColor(elementId, percentage) {
+                const element = document.getElementById(elementId);
+                element.className = 'progress-bar';
+                
+                if (percentage < 50) {
+                    element.classList.add('bg-success');
+                } else if (percentage < 80) {
+                    element.classList.add('bg-warning');
+                } else {
+                    element.classList.add('bg-danger');
+                }
+            }
+
+            async clearCache() {
+                try {
+                    const response = await fetch('/api/cache/cleanup', {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        this.showSuccess('Cache cleared successfully');
+                        setTimeout(() => this.loadMetrics(), 500);
+                    } else {
+                        this.showError('Failed to clear cache');
+                    }
+                } catch (error) {
+                    this.showError('Error clearing cache');
+                }
+            }
+
+            async downloadMetrics() {
+                try {
+                    const response = await fetch('/api/performance');
+                    const metrics = await response.json();
+                    
+                    const dataStr = JSON.stringify(metrics, null, 2);
+                    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                    
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(dataBlob);
+                    link.download = `iam-metrics-${new Date().toISOString().split('T')[0]}.json`;
+                    link.click();
+                } catch (error) {
+                    this.showError('Failed to download metrics');
+                }
+            }
+
+            async testHealth() {
+                try {
+                    const response = await fetch('/api/health');
+                    const health = await response.json();
+                    
+                    if (health.status === 'healthy') {
+                        this.showSuccess('System health check passed');
+                    } else {
+                        this.showError(`Health check failed: ${health.status}`);
+                    }
+                } catch (error) {
+                    this.showError('Health check request failed');
+                }
+            }
+
+            startAutoRefresh() {
+                setInterval(() => {
+                    this.loadMetrics();
+                }, 30000); // Refresh every 30 seconds
+            }
+
+            showSuccess(message) {
+                this.showToast(message, 'success');
+            }
+
+            showError(message) {
+                this.showToast(message, 'danger');
+            }
+
+            showToast(message, type) {
+                const toastContainer = document.createElement('div');
+                toastContainer.className = 'position-fixed top-0 end-0 p-3';
+                toastContainer.style.zIndex = '1050';
+                
+                toastContainer.innerHTML = `
+                    <div class="toast show" role="alert">
+                        <div class="toast-header">
+                            <i class="fas fa-${type === 'success' ? 'check-circle text-success' : 'exclamation-circle text-danger'} me-2"></i>
+                            <strong class="me-auto">Dashboard</strong>
+                            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                        </div>
+                        <div class="toast-body">
+                            ${message}
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(toastContainer);
+                
+                setTimeout(() => {
+                    toastContainer.remove();
+                }, 5000);
+            }
+        }
+
+        // Initialize dashboard when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new PerformanceDashboard();
+        });
+    </script>
+</body>
+</html>
