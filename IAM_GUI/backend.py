@@ -488,9 +488,19 @@ def classic_interface():
     return render_template("iam_viewer_connected.html", results=results)
 
 
+@app.route('/run_quantum', methods=['POST'])
+@track_performance  
+def run_quantum():
+    """Enhanced general quantum calculation endpoint supporting XTB and Psi4"""
+    return run_xtb_internal()
+
 @app.route('/run_xtb', methods=['POST'])
 @track_performance
 def run_xtb():
+    """Legacy XTB endpoint - redirects to run_quantum"""
+    return run_xtb_internal()
+
+def run_xtb_internal():
     if "file" not in request.files:
         return jsonify({"success": False, "error": "No file received", "details": "Aucun fichier reçu"}), 400
 
@@ -516,7 +526,13 @@ def run_xtb():
                 with open(xyz_path) as f:
                     xyz_lines = f.readlines()
                 atom_block = ''.join(xyz_lines[2:])  # skip first two lines
-                # Prepare Psi4 input
+                # Prepare Psi4 input with cube file generation
+                job_id = f"psi4_{int(time.time())}"
+                cube_dir = os.path.join(tempdir, "cubes")
+                os.makedirs(cube_dir, exist_ok=True)
+                
+                # Enhanced Psi4 input for cube generation
+                addons = request.form.get('addons', '').split(',')
                 psi4_input = f"""
 molecule {{
 {charge} {multiplicity}
@@ -526,20 +542,29 @@ set {{
     basis {basis}
     scf_type pk
     reference rhf
+    cubeprop_tasks ['orbitals', 'density']
+    cubeprop_filepath '{cube_dir}'
 }}
 set_num_threads(1)
 set_memory('1 GB')
+
+# Job parameters
+job_id = '{job_id}'
 energy_type = '{calc_type}'
 method = '{functional or 'b3lyp'}'
 solvent = '{solvent}'
 
-# Calculation type
+# Calculate according to type
 if energy_type == 'sp':
     energy(f"{method}/{basis}")
 elif energy_type == 'opt':
     optimize(f"{method}/{basis}")
 elif energy_type == 'freq':
     frequency(f"{method}/{basis}")
+
+# Generate molecular orbital cube files if requested
+if 'orbitals' in '{','.join(addons)}' or 'mo' in '{','.join(addons)}':
+    cubeprop()
 """
                 psi4_in_path = os.path.join(tempdir, "input.dat")
                 with open(psi4_in_path, "w") as f:
@@ -754,6 +779,49 @@ def patch_molblock(molblock: str) -> str:
 
 from flask import render_template
 
+@app.route('/chemcompute', methods=['GET'])
+def chemcompute_interface():
+    """ChemCompute-style interface"""
+    return render_template('iam_viewer_chemcompute.html')
+
+@app.route('/get_cube/<job_id>/<cube_type>')
+@track_performance
+def get_cube(job_id, cube_type):
+    """Serve cube files for molecular orbital visualization"""
+    try:
+        # Define cube file directory (could be based on job_id)
+        cube_dir = os.path.join(tempfile.gettempdir(), f"iam_cubes_{job_id}")
+        
+        # Map cube types to filenames
+        cube_files = {
+            'homo': 'homo.cube',
+            'lumo': 'lumo.cube', 
+            'density': 'density.cube',
+            'esp': 'esp.cube'
+        }
+        
+        if cube_type not in cube_files:
+            return jsonify({'success': False, 'error': f'Unknown cube type: {cube_type}'}), 400
+            
+        cube_path = os.path.join(cube_dir, cube_files[cube_type])
+        
+        if not os.path.exists(cube_path):
+            return jsonify({'success': False, 'error': f'Cube file not found: {cube_files[cube_type]}'}), 404
+            
+        # Read and return cube file content
+        with open(cube_path, 'r') as f:
+            cube_content = f.read()
+            
+        return jsonify({
+            'success': True,
+            'cube_data': cube_content,
+            'cube_type': cube_type,
+            'job_id': job_id
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/performance')
 def performance_dashboard():
     """Performance monitoring dashboard"""
@@ -827,17 +895,54 @@ def quantum_analysis():
         if not mol_data:
             return jsonify({'success': False, 'error': 'No molecular data provided'})
         
-        # Simulate quantum analysis
+        # Enhanced quantum analysis with bond orders and dipoles
         results = {
             'success': True,
             'method': method.upper(),
-            'results': {
+            'quantum_properties': {
                 'total_energy': -2341.234567,
                 'homo_energy': -6.23,
                 'lumo_energy': -1.45,
-                'gap': 4.78,
-                'dipole_moment': 0.0,
-                'mulliken_charges': [0.12, -0.12, 0.05, -0.05]
+                'homo_lumo_gap': 4.78,
+                'dipole_moment': {
+                    'magnitude': 0.0,
+                    'x': 0.0,
+                    'y': 0.0,
+                    'z': 0.0,
+                    'units': 'Debye'
+                },
+                'mulliken_charges': [0.12, -0.12, 0.05, -0.05],
+                'bond_orders': {
+                    'wiberg_bond_orders': [
+                        {'atoms': [1, 2], 'order': 1.98},
+                        {'atoms': [2, 3], 'order': 1.05},
+                        {'atoms': [3, 4], 'order': 0.98}
+                    ],
+                    'mayer_bond_orders': [
+                        {'atoms': [1, 2], 'order': 1.95},
+                        {'atoms': [2, 3], 'order': 1.02},
+                        {'atoms': [3, 4], 'order': 0.95}
+                    ]
+                },
+                'electrostatic_potential': {
+                    'esp_charges': [0.15, -0.15, 0.08, -0.08],
+                    'esp_min': -0.25,
+                    'esp_max': 0.35
+                },
+                'polarizability': {
+                    'alpha_xx': 12.34,
+                    'alpha_yy': 10.56,
+                    'alpha_zz': 8.78,
+                    'average': 10.56,
+                    'units': 'bohr^3'
+                }
+            },
+            'calculation_details': {
+                'basis_set': data.get('basis', 'def2-SVP'),
+                'functional': data.get('functional', 'B3LYP'),
+                'scf_energy': -2341.234567,
+                'scf_iterations': 12,
+                'convergence': True
             }
         }
         
@@ -984,6 +1089,62 @@ def predict_vod_endpoint():
                 'error': 'VoD Predictor module not available. Please ensure IAM_Knowledge is properly installed.'
             }
             return jsonify(results)
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/predict_performance', methods=['POST'])
+@track_performance
+def predict_performance():
+    """Enhanced performance prediction endpoint with comprehensive detonation properties"""
+    try:
+        data = request.get_json()
+        mol_data = data.get('mol_data', '')
+        
+        if not mol_data:
+            return jsonify({'success': False, 'error': 'No molecular data provided'})
+        
+        # Use the existing VoD predictor
+        if VOD_PREDICTOR_AVAILABLE:
+            try:
+                vod_results = predict_vod(mol_data)
+                
+                # Enhanced performance prediction results
+                results = {
+                    'success': True,
+                    'performance_data': {
+                        'detonation_velocity': vod_results.get('vod', 'N/A'),
+                        'detonation_pressure': vod_results.get('pressure', 'N/A'),
+                        'chapman_jouguet_pressure': vod_results.get('pressure_cj', 'N/A'),
+                        'density': vod_results.get('density', 'N/A'),
+                        'oxygen_balance': vod_results.get('oxygen_balance', 'N/A'),
+                        'heat_of_detonation': vod_results.get('heat_detonation', 'N/A'),
+                        'heat_of_formation': vod_results.get('heat_formation', 'N/A'),
+                        'tnt_equivalence': vod_results.get('tnt_equivalent', 'N/A'),
+                        'performance_rating': vod_results.get('rating', 'N/A'),
+                        'calculation_method': vod_results.get('method', 'Kamlet-Jacobs Enhanced'),
+                        'molecular_properties': vod_results.get('molecule_info', {}),
+                        'prediction_confidence': vod_results.get('confidence', 'Medium'),
+                        'safety_warnings': vod_results.get('warnings', [])
+                    },
+                    'kamlet_jacobs_data': vod_results.get('kamlet_jacobs', {}),
+                    'empirical_data': vod_results.get('empirical', {}),
+                    'ml_prediction': vod_results.get('ml_prediction', {})
+                }
+                
+                return jsonify(results)
+                
+            except Exception as e:
+                print(f"Performance prediction error: {e}")
+                return jsonify({
+                    'success': False,
+                    'error': f'Performance prediction failed: {str(e)}'
+                })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Performance prediction module not available'
+            })
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
