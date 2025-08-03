@@ -23,6 +23,7 @@
     window.addEventListener('message', (event) => {
       // Only accept messages from same origin
       if (event.origin !== window.location.origin) return;
+      
       if (event.data && event.data.type === 'get-molfile') {
         // Wait for ketcher to be ready
         const sendMol = async () => {
@@ -33,10 +34,41 @@
           }
           if (window.ketcher && window.ketcher.getMolfile) {
             const molfile = await window.ketcher.getMolfile();
-            window.parent.postMessage({ type: 'molfile', molfile }, event.origin);
+            window.parent.postMessage({ type: 'molfile-response', molfile }, event.origin);
           }
         };
         sendMol();
+      }
+      
+      if (event.data && event.data.type === 'get-smiles') {
+        // Wait for ketcher to be ready
+        const sendSmiles = async () => {
+          let tries = 0;
+          while ((!window.ketcher || !window.ketcher.getSmiles) && tries < 50) {
+            await new Promise(r => setTimeout(r, 100));
+            tries++;
+          }
+          if (window.ketcher && window.ketcher.getSmiles) {
+            const smiles = await window.ketcher.getSmiles();
+            window.parent.postMessage({ type: 'smiles-response', smiles }, event.origin);
+          }
+        };
+        sendSmiles();
+      }
+      
+      if (event.data && event.data.type === 'clear') {
+        // Wait for ketcher to be ready
+        const clearStructure = async () => {
+          let tries = 0;
+          while ((!window.ketcher || !window.ketcher.setMolecule) && tries < 50) {
+            await new Promise(r => setTimeout(r, 100));
+            tries++;
+          }
+          if (window.ketcher && window.ketcher.setMolecule) {
+            await window.ketcher.setMolecule('');
+          }
+        };
+        clearStructure();
       }
     });
   </script>

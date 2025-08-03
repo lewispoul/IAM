@@ -270,7 +270,7 @@ def robust_mol_to_xyz(mol_data):
     Robust conversion from MOL data to XYZ with error handling and cleaning.
     """
     if not RDKIT_AVAILABLE:
-        return None, "RDKit not available"
+        return {'success': False, 'error': 'RDKit not available'}
     
     try:
         # Clean the MOL data
@@ -278,13 +278,13 @@ def robust_mol_to_xyz(mol_data):
         
         # Basic MOL format validation
         if len(mol_lines) < 4:
-            return None, "Invalid MOL format: too few lines"
+            return {'success': False, 'error': 'Invalid MOL format: too few lines'}
         
         # Try to parse with RDKit
         try:
             mol = Chem.MolFromMolBlock(mol_data)
             if mol is None:
-                return None, "RDKit could not parse MOL block"
+                return {'success': False, 'error': 'RDKit could not parse MOL block'}
             
             # Embed 3D coordinates
             mol = embed_molecule_with_3d(mol)
@@ -292,12 +292,33 @@ def robust_mol_to_xyz(mol_data):
             # Convert to XYZ
             xyz_block = Chem.MolToXYZBlock(mol)
             if not xyz_block or xyz_block.strip() == "":
-                return None, "Failed to generate XYZ coordinates"
+                return {'success': False, 'error': 'Failed to generate XYZ coordinates'}
             
-            return xyz_block, None
+            # Get molecular properties
+            try:
+                from rdkit.Chem import rdMolDescriptors
+                formula = rdMolDescriptors.CalcMolFormula(mol)
+                atom_count = mol.GetNumAtoms()
+                bond_count = mol.GetNumBonds()
+            except:
+                formula = 'Unknown'
+                atom_count = 0
+                bond_count = 0
+            
+            return {
+                'success': True,
+                'xyz': xyz_block,
+                'formula': formula,
+                'atom_count': atom_count,
+                'bond_count': bond_count
+            }
             
         except Exception as e:
-            return None, f"MOL parsing error: {str(e)}"
+            return {'success': False, 'error': f'MOL parsing error: {str(e)}'}
+            
+    except Exception as e:
+        logger.error(f"Error in robust_mol_to_xyz: {str(e)}")
+        return {'success': False, 'error': f'Conversion error: {str(e)}'}
             
     except Exception as e:
         return None, f"Unexpected error in MOL conversion: {str(e)}"
@@ -1436,6 +1457,35 @@ def smiles_to_xyz():
             
     except Exception as e:
         logger.error(f"SMILES to XYZ conversion error: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/mol_to_xyz', methods=['POST'])
+@track_performance
+def mol_to_xyz():
+    """Convert MOL format to XYZ format"""
+    try:
+        data = request.get_json()
+        mol_data = data.get('mol_data', '')
+        
+        if not mol_data:
+            return jsonify({'success': False, 'error': 'No MOL data provided'})
+        
+        # Use the robust_mol_to_xyz function
+        result = robust_mol_to_xyz(mol_data)
+        
+        if result['success']:
+            return jsonify({
+                'success': True,
+                'xyz': result['xyz'],
+                'formula': result.get('formula', 'Unknown'),
+                'atom_count': result.get('atom_count', 0),
+                'bond_count': result.get('bond_count', 0)
+            })
+        else:
+            return jsonify({'success': False, 'error': result['error']})
+            
+    except Exception as e:
+        logger.error(f"MOL to XYZ conversion error: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/write_file', methods=['POST'])

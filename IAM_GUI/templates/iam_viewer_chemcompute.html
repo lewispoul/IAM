@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IAM – Intelligent Agent for Molecules</title>
+    <!-- Add ChemCompute-style layout and functionality -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style_chemcompute.css') }}">
+</head>
+<body>
+    <!-- Header Section -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom">
+        <div class="container-fluid">
+            <div class="navbar-brand">
+                <span class="fw-bold text-primary">IAM</span>
+                <span class="ms-2 text-muted">– Intelligent Agent for Molecules</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Left Panel: Job Setup -->
+            <div class="col-md-4 col-lg-3">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">Job Setup</div>
+                    <div class="card-body">
+                        <!-- Molecule Input Section -->
+                        <div>
+                            <h6>Molecule Input</h6>
+                            <div class="btn-group">
+                                <button class="btn btn-outline-primary">Draw</button>
+                                <button class="btn btn-outline-primary">SMILES</button>
+                                <button class="btn btn-outline-primary">Upload</button>
+                            </div>
+                            <iframe src="/static/ketcher/index.html" width="100%" height="200"></iframe>
+                        </div>
+                        <!-- Calculation Parameters -->
+                        <div>
+                            <h6>Calculation Parameters</h6>
+                            <label>Charge</label>
+                            <input type="number" class="form-control">
+                            <label>Multiplicity</label>
+                            <select class="form-select">
+                                <option>Singlet</option>
+                                <option>Doublet</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Results and Viewer -->
+            <div class="col-md-8 col-lg-9">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">Results</div>
+                    <div class="card-body">
+                        <div id="viewer" style="height: 300px; background: #f0f0f0;"></div>
+                        <div>
+                            <h6>Output Tabs</h6>
+                            <ul class="nav nav-tabs">
+                                <li class="nav-item"><a class="nav-link active" href="#summary">Summary</a></li>
+                                <li class="nav-item"><a class="nav-link" href="#output">Output</a></li>
+                                <li class="nav-item"><a class="nav-link" href="#logs">Logs</a></li>
+                            </ul>
+                            <div id="summary" class="tab-pane active">Summary Content</div>
+                            <div id="output" class="tab-pane">Output Content</div>
+                            <div id="logs" class="tab-pane">Logs Content</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

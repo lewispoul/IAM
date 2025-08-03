@@ -270,6 +270,94 @@
         </div>
     </div>
 
+    <!-- Quantum Mechanical Parameters Section -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            Quantum Mechanical Parameters
+        </div>
+        <div class="card-body">
+            <form id="quantumParamsForm">
+                <div class="mb-3">
+                    <label for="packageSelect" class="form-label">Package</label>
+                    <select id="packageSelect" class="form-select">
+                        <option value="xtb">XTB</option>
+                        <option value="psi4">Psi4</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="calcTypeSelect" class="form-label">Calculation Type</label>
+                    <select id="calcTypeSelect" class="form-select">
+                        <option value="sp">Single-Point Energy</option>
+                        <option value="opt">Geometry Optimization</option>
+                        <option value="ts">Saddle-Point Search</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="addonsSelect" class="form-label">Add-Ons</label>
+                    <select id="addonsSelect" class="form-select" multiple>
+                        <option value="IR">IR</option>
+                        <option value="Thermodynamics">Thermodynamics</option>
+                        <option value="UVVis">UV-Vis</option>
+                        <option value="NMR">NMR</option>
+                        <option value="Raman">Raman</option>
+                        <option value="DeltaHf">ΔHf</option>
+                        <option value="NBO">NBO</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="basisSetSelect" class="form-label">Basis Set</label>
+                    <select id="basisSetSelect" class="form-select">
+                        <option value="6-31G*">6-31G*</option>
+                        <option value="6-311G**">6-311G**</option>
+                        <option value="aug-cc-pVDZ">aug-cc-pVDZ</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="chargeInput" class="form-label">Charge</label>
+                    <input type="number" id="chargeInput" class="form-control" value="0">
+                </div>
+                <div class="mb-3">
+                    <label for="multiplicitySelect" class="form-label">Multiplicity</label>
+                    <select id="multiplicitySelect" class="form-select">
+                        <option value="1">Singlet</option>
+                        <option value="2">Doublet</option>
+                        <option value="3">Triplet</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Output Tabs Section -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            Results
+        </div>
+        <div class="card-body">
+            <ul class="nav nav-tabs" id="outputTabs">
+                <li class="nav-item">
+                    <a class="nav-link active" id="summaryTab" data-bs-toggle="tab" href="#summaryContent">Summary</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="outputTab" data-bs-toggle="tab" href="#outputContent">Output</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="logsTab" data-bs-toggle="tab" href="#logsContent">Logs</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="visualizationTab" data-bs-toggle="tab" href="#visualizationContent">Visualization</a>
+                </li>
+            </ul>
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="summaryContent">Summary Content</div>
+                <div class="tab-pane fade" id="outputContent">Output Content</div>
+                <div class="tab-pane fade" id="logsContent">Logs Content</div>
+                <div class="tab-pane fade" id="visualizationContent">Visualization Content</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading overlay -->
     <div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-none align-items-center justify-content-center" style="background:rgba(0,0,0,0.5);z-index:9999;">
         <div class="text-center text-white">
@@ -704,222 +792,3 @@
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
-                        </button>
-                        <button id="exportSmiles" class="btn btn-outline-secondary btn-sm" title="Export to SMILES">
-                            <i class="bi bi-file-earmark-code"></i> Export SMILES
-                        </button>
-                        <button id="exportMol" class="btn btn-outline-secondary btn-sm" title="Export to MOL">
-                            <i class="bi bi-file-earmark-text"></i> Export MOL
-                        </button>
-                        <button id="exportXyz" class="btn btn-outline-secondary btn-sm" title="Export to XYZ">
-                            <i class="bi bi-file-earmark-binary"></i> Export XYZ
-                        </button>
-                        <button id="copySmiles" class="btn btn-outline-secondary btn-sm" title="Copy SMILES to clipboard">
-                            <i class="bi bi-clipboard"></i> Copy SMILES
-                        </button>
-                        <button id="copyMol" class="btn btn-outline-secondary btn-sm" title="Copy MOL to clipboard">
-                            <i class="bi bi-clipboard"></i> Copy MOL
-                        </button>
-                        <button id="copyXyz" class="btn btn-outline-secondary btn-sm" title="Copy XYZ to clipboard">
-                            <i class="bi bi-clipboard"></i> Copy XYZ
-                        </button>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-bold" for="smilesPaste">Paste SMILES</label>
-                    <div class="input-group mb-2">
-                        <input id="smilesPaste" class="form-control" placeholder="Paste SMILES here">
-                        <button id="importSmiles" class="btn btn-outline-success" type="button" title="Import SMILES">Import</button>
-                    </div>
-                    <label class="form-label fw-bold" for="molPaste">Paste MOL/XYZ</label>
-                    <div class="input-group mb-2">
-                        <textarea id="molPaste" class="form-control" rows="2" placeholder="Paste MOL or XYZ here"></textarea>
-                        <button id="importMol" class="btn btn-outline-success" type="button" title="Import MOL/XYZ">Import</button>
-                    </div>
-                    <label class="form-label fw-bold" for="xyzFile">Or upload file</label>
-                    <input type="file" id="xyzFile" class="form-control" accept=".xyz,.mol,.sdf,.smi,.smiles">
-                </div>
-                <!-- Improved job options section -->
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Job Options</label>
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <select id="method" class="form-select">
-                                <option>XTB</option>
-                                <option disabled>DFT (soon)</option>
-                            </select>
-                        </div>
-                        <div class="col-6">
-                            <select id="basis" class="form-select">
-                                <option>def2-SVP</option>
-                                <option>def2-TZVP</option>
-                                <option>6-31G*</option>
-                            </select>
-                        </div>
-                        <div class="col-6">
-                            <input id="charge" class="form-control" type="number" placeholder="Charge" value="0">
-                        </div>
-                        <div class="col-6">
-                            <input id="multiplicity" class="form-control" type="number" placeholder="Multiplicity" value="1">
-                        </div>
-                    </div>
-                    <div class="mb-3 d-flex gap-2">
-                        <button id="launchIAMBtn" class="btn btn-primary job-btn flex-fill">Submit Job</button>
-                        <button id="resetBtn" class="btn btn-outline-secondary job-btn flex-fill">Reset</button>
-                    </div>
-                </div>
-            </div>
-            <!-- RIGHT PANEL -->
-            <div class="col-lg-7 col-12 panel-right mb-4 position-relative">
-                <div class="d-flex flex-row w-100 mb-2" style="gap:1.5rem;align-items:flex-start;">
-                    <!-- Advanced Controls Panel -->
-                    <div id="viewer-controls-panel" class="d-flex flex-column gap-2" style="min-width:220px;max-width:260px;">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="manualCoords">
-                            <label class="form-check-label" for="manualCoords">Manually alter coordinates</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="manualMasses">
-                            <label class="form-check-label" for="manualMasses">Manually alter atomic masses</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="advancedOptions">
-                            <label class="form-check-label" for="advancedOptions">Advanced Options</label>
-                        </div>
-                        <div id="advancedOptionsPanel" class="ms-3 d-none flex-column gap-2">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="labelAtoms">
-                                <label class="form-check-label" for="labelAtoms">Label Atoms</label>
-                            </div>
-                            <div class="d-flex align-items-center gap-2">
-                                <input class="form-check-input" type="checkbox" id="useSymmetry">
-                                <label class="form-check-label mb-0" for="useSymmetry">Use Symmetry</label>
-                                <select id="symmetryGroup" class="form-select form-select-sm w-auto ms-2" disabled>
-                                    <option value="">Select Group</option>
-                                    <option value="C2v">C2v</option>
-                                    <option value="D2h">D2h</option>
-                                    <option value="Td">Td</option>
-                                    <option value="Oh">Oh</option>
-                                </select>
-                            </div>
-                        </div>
-                        <hr class="my-2">
-                        <div class="d-flex flex-column gap-2" id="functional-buttons">
-                            <button id="resymmetrizeBtn" class="btn btn-outline-primary btn-sm">Resymmetrize</button>
-                            <button id="drawSymmetryBtn" class="btn btn-outline-primary btn-sm">Draw Point Group Elements</button>
-                            <button id="optimizeBtn" class="btn btn-outline-success btn-sm">Optimize Structure in 3D</button>
-                            <button id="deleteHBtn" class="btn btn-outline-danger btn-sm">Delete All Hydrogens</button>
-                            <button id="saveStructBtn" class="btn btn-outline-secondary btn-sm">Save Structure to File</button>
-                        </div>
-                    </div>
-                    <!-- Viewer Controls (background, view, etc.) -->
-                    <div class="flex-grow-1">
-                        <div id="viewer-controls" class="mb-2 d-flex gap-2 justify-content-center align-items-center">
-                            <label for="viewerBg" class="form-label mb-0 me-2">Background:</label>
-                            <select id="viewerBg" class="form-select form-select-sm w-auto">
-                                <option value="white">White</option>
-                                <option value="#f6f9fb">Light Gray</option>
-                                <option value="#e3f2fd">Pale Blue</option>
-                                <option value="transparent">Transparent</option>
-                            </select>
-                            <button id="viewerReset" class="btn btn-outline-secondary btn-sm">Reset View</button>
-                            <button id="viewerCenter" class="btn btn-outline-secondary btn-sm">Center</button>
-                            <button id="viewerRotate" class="btn btn-outline-secondary btn-sm">Toggle Rotation</button>
-                        </div>
-                        <div id="viewer"></div>
-                    </div>
-                </div>
-                <!-- Results Section -->
-                <div class="results-section mt-3">
-                    <!-- Simple tabs without conflicting Bootstrap structures -->
-                    <div class="custom-tabs mb-3">
-                        <button class="tab-btn active" onclick="showResultTab('summary')">Summary</button>
-                        <button class="tab-btn" onclick="showResultTab('output')">Output</button>
-                        <button class="tab-btn" onclick="showResultTab('log')">Log</button>
-                        <button class="tab-btn" onclick="showResultTab('tools')">🧰 Tools</button>
-                    </div>
-                    
-                    <!-- Tab contents -->
-                    <div class="tab-contents">
-                        <div class="tab-panel active" id="tab-summary">
-                            <div class="p-3 bg-light rounded">
-                                <span id="summaryContent" class="text-muted">Run a calculation to see results...</span>
-                            </div>
-                        </div>
-                        
-                        <div class="tab-panel d-none" id="tab-output">
-                            <div class="p-3 bg-light rounded">
-                                <pre id="outputFileContent" class="text-muted">Output file will appear here.</pre>
-                            </div>
-                        </div>
-                        
-                        <div class="tab-panel d-none" id="tab-log">
-                            <div class="p-3 bg-light rounded">
-                                <pre id="logFileContent" class="text-muted">Log file will appear here.</pre>
-                            </div>
-                        </div>
-                        
-                        <div class="tab-panel d-none" id="tab-tools">
-                            <div class="p-3">
-                                <h5>🧰 IAM Tools</h5>
-                                <div class="d-flex flex-column gap-3">
-                                    <div>
-                                        <label for="smilesInput" class="form-label">SMILES/MOL Input</label>
-                                        <input type="text" id="smilesInput" class="form-control" placeholder="Enter SMILES or MOL">
-                                    </div>
-                                    <div class="d-flex gap-2">
-                                        <button id="predictStability" class="btn btn-success btn-sm" onclick="predictStability()">
-                                            <i class="bi bi-bar-chart"></i> Predict Stability
-                                        </button>
-                                        <button id="predictVoD" class="btn btn-success btn-sm" onclick="predictVoD()">
-                                            <i class="bi bi-speedometer"></i> Predict VoD
-                                        </button>
-                                        <button id="optimizePerformance" class="btn btn-warning btn-sm" onclick="optimizePerformance()">
-                                            <i class="bi bi-lightning"></i> Optimize Performance
-                                        </button>
-                                    </div>
-                                    <div class="d-flex gap-2">
-                                        <button id="generateReport" class="btn btn-primary btn-sm" onclick="generateReport()">
-                                            <i class="bi bi-file-earmark-text"></i> Generate Report
-                                        </button>
-                                    </div>
-                                    <div class="d-flex gap-2 mt-2">
-                                        <button id="openMolecularOrbitals" class="btn btn-info btn-sm" onclick="openProfessionalMolecularOrbitals()">
-                                            <i class="bi bi-diagram-3"></i> Professional Molecular Orbitals
-                                        </button>
-                                        <button id="openPhysicalChemistry" class="btn btn-outline-info btn-sm" onclick="openPhysicalChemistry()">
-                                            <i class="bi bi-atom"></i> Enhanced Orbitals
-                                        </button>
-                                    </div>
-                                    <div id="iam-result" class="mt-3 p-3 bg-light rounded">
-                                        <h6>Results:</h6>
-                                        <pre id="result-output" class="text-muted">Tool results will appear here.</pre>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Loading overlay - simplified -->
-                <div id="loadingOverlay" class="position-absolute top-0 start-0 w-100 h-100 d-none align-items-center justify-content-center" style="background:rgba(248,249,250,0.9);backdrop-filter:blur(2px);">
-                    <div class="text-center">
-                        <div class="spinner-border text-primary mb-2" role="status"></div>
-                        <div class="fw-bold">Processing calculation...</div>
-                    </div>
-                </div>
-                
-                <!-- Toast notification -->
-                <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050;">
-                    <div id="jobToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                        <div class="d-flex">
-                            <div class="toast-body">
-                                <strong>Job Complete!</strong>
-                            </div>
-                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
