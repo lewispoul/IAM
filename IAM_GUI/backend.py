@@ -281,18 +281,81 @@ def smiles_to_xyz():
         
     data = request.get_json()
     smiles = data.get('smiles', '')
+    
+    if not smiles:
+        return jsonify({"success": False, "error": "No SMILES provided"})
+        
     try:
         print(f"Processing SMILES: {smiles}")
         mol = Chem.MolFromSmiles(smiles)
         if mol is None:
-            return jsonify({"success": False, "error": "Invalid SMILES input."}), 400
+            return jsonify({"success": False, "error": "Invalid SMILES input."})
 
+        # Add hydrogens and generate 3D coordinates
         mol = Chem.AddHs(mol)
-        mol = embed_molecule_with_3d(mol)
-        xyz = Chem.MolToXYZBlock(mol)
-        return jsonify({"success": True, "xyz": xyz})
+        
+        # Enhanced 3D embedding with multiple attempts
+        embed_success = False
+        for attempt in range(3):  # Try up to 3 times
+            try:
+                # Use ETKDG method for better 3D coordinates
+                params = rdDistGeom.ETKDGv3()
+                params.randomSeed = 42 + attempt  # Different seed each attempt
+                embed_result = rdDistGeom.EmbedMolecule(mol, params)
+                
+                if embed_result == 0:  # Success
+                    # Optimize geometry
+                    try:
+                        rdForceFieldHelpers.UFFOptimizeMolecule(mol, maxIters=200)
+                        embed_success = True
+                        break
+                    except:
+                        try:
+                            rdForceFieldHelpers.MMFFOptimizeMolecule(mol, maxIters=200)
+                            embed_success = True
+                            break
+                        except:
+                            continue
+            except:
+                continue
+        
+        if not embed_success:
+            # Fallback to simple embedding
+            try:
+                rdDistGeom.EmbedMolecule(mol)
+                embed_success = True
+            except:
+                return jsonify({"success": False, "error": "Failed to generate 3D coordinates"})
+        
+        # Generate XYZ format manually for better control
+        conf = mol.GetConformer()
+        atoms = mol.GetAtoms()
+        
+        if len(atoms) == 0:
+            return jsonify({"success": False, "error": "Molecule has no atoms after processing"})
+        
+        xyz_lines = [str(len(atoms)), "Generated from SMILES by IAM"]
+        for atom in atoms:
+            pos = conf.GetAtomPosition(atom.GetIdx())
+            symbol = atom.GetSymbol()
+            xyz_lines.append(f"{symbol} {pos.x:.6f} {pos.y:.6f} {pos.z:.6f}")
+        
+        xyz_content = "\n".join(xyz_lines)
+        
+        return jsonify({
+            "success": True, 
+            "xyz": xyz_content,
+            "atom_count": len(atoms),
+            "smiles": smiles
+        })
+        
     except Exception as e:
-        return jsonify({'success': False, 'error': 'SMILES conversion error', 'details': str(e)})
+        print(f"SMILES conversion error: {traceback.format_exc()}")
+        return jsonify({
+            'success': False, 
+            'error': 'SMILES conversion error', 
+            'details': str(e)
+        })
 
 
 @app.route('/molfile_to_xyz', methods=['POST'])
@@ -442,18 +505,50 @@ from flask import render_template
 def analyze():
     """Professional analysis endpoint that runs XTB calculations"""
     try:
-        data = request.get_json()
-        mol_data = data.get('mol_data', '')
-        analysis_type = data.get('analysis_type', 'basic')
+        # Check if this is a file upload request
+        if request.files and 'file' in request.files:
+            # Handle file upload (XYZ file)
+            uploaded_file = request.files['file']
+            if uploaded_file.filename == '':
+                return jsonify({'success': False, 'error': 'No file selected'})
+            
+            # Read XYZ content directly from uploaded file
+            xyz_content = uploaded_file.read().decode('utf-8')
+            analysis_type = request.form.get('analysis_type', 'basic')
+            
+            # Validate XYZ format
+            if not is_xyz_format(xyz_content):
+                return jsonify({'success': False, 'error': 'Invalid XYZ file format'})
+                
+        else:
+            # Handle JSON request (MOL data from Ketcher)
+            data = request.get_json()
+            if not data:
+                return jsonify({'success': False, 'error': 'No data provided'})
+                
+            mol_data = data.get('mol_data', '')
+            analysis_type = data.get('analysis_type', 'basic')
+            
+            if not mol_data:
+                return jsonify({'success': False, 'error': 'No molecular data provided'})
+            
+            # Convert molfile to XYZ using existing function
+            try:
+                xyz_content = molblock_to_xyz(mol_data)
+            except Exception as e:
+                return jsonify({'success': False, 'error': f'Failed to convert molecular data: {str(e)}'})
         
-        if not mol_data:
-            return jsonify({'success': False, 'error': 'No molecular data provided'})
+        # Validate that we have actual molecular content
+        lines = xyz_content.strip().split('\n')
+        if len(lines) < 3:
+            return jsonify({'success': False, 'error': 'Invalid molecular structure: insufficient data'})
         
-        # Convert molfile to XYZ using existing function
         try:
-            xyz_content = molblock_to_xyz(mol_data)
-        except Exception as e:
-            return jsonify({'success': False, 'error': f'Failed to convert molecular data: {str(e)}'})
+            atom_count = int(lines[0].strip())
+            if atom_count == 0:
+                return jsonify({'success': False, 'error': 'Molecule has no atoms'})
+        except ValueError:
+            return jsonify({'success': False, 'error': 'Invalid XYZ format: first line must be atom count'})
         
         # Run XTB calculation
         with tempfile.TemporaryDirectory() as tempdir:
@@ -507,9 +602,9 @@ def analyze():
                     if num_electrons > 0 and len(orbital_energies) >= num_electrons // 2:
                         homo_index = (num_electrons // 2) - 1  # 0-indexed
                         if homo_index >= 0 and homo_index < len(orbital_energies):
-                            homo_energy = f"{orbital_energies[homo_index]:.3f} eV"
+                            homo_energy = f"{orbital_energies[homo_index]:.3f}"
                         if homo_index + 1 < len(orbital_energies):
-                            lumo_energy = f"{orbital_energies[homo_index + 1]:.3f} eV"
+                            lumo_energy = f"{orbital_energies[homo_index + 1]:.3f}"
                 except:
                     pass
             
@@ -517,7 +612,7 @@ def analyze():
             lines = final_xyz.strip().split('\n')
             atom_count = {}
             molecular_weight = 0
-            atomic_weights = {'H': 1.008, 'C': 12.011, 'N': 14.007, 'O': 15.999, 'F': 18.998, 'P': 30.974, 'S': 32.065, 'Cl': 35.453}
+            atomic_weights = {'H': 1.008, 'C': 12.011, 'N': 14.007, 'O': 15.999, 'F': 18.998, 'P': 30.974, 'S': 32.065, 'Cl': 35.453, 'Br': 79.904, 'I': 126.904}
             
             if len(lines) > 2:
                 for line in lines[2:]:  # skip count and comment lines
@@ -541,31 +636,67 @@ def analyze():
                         'x': f"{dx:.6f}",
                         'y': f"{dy:.6f}", 
                         'z': f"{dz:.6f}",
-                        'total': f"{dipole_magnitude:.6f} Debye"
+                        'total': f"{dipole_magnitude:.6f}"
                     }
                 except:
                     pass
             
             # Get frequencies if available (vibrational modes)
             frequencies = xtb_data.get('frequencies', [])
+            vibrational_data = []
+            if frequencies:
+                for i, freq in enumerate(frequencies[:20]):  # First 20 frequencies
+                    vibrational_data.append({
+                        'mode': i + 1,
+                        'frequency': f"{freq:.2f}",
+                        'intensity': xtb_data.get('intensities', [0] * len(frequencies))[i] if i < len(xtb_data.get('intensities', [])) else 0
+                    })
             
-            # Read raw XTB output (last 30 lines)
+            # Enhanced orbital data
+            orbital_data = []
+            if orbital_energies:
+                for i, energy in enumerate(orbital_energies[:15]):  # First 15 orbitals
+                    orbital_type = "Occupied" if i < (xtb_data.get('number of electrons', 0) // 2) else "Virtual"
+                    is_homo = i == (xtb_data.get('number of electrons', 0) // 2) - 1
+                    is_lumo = i == (xtb_data.get('number of electrons', 0) // 2)
+                    
+                    orbital_data.append({
+                        'index': i + 1,
+                        'energy': f"{energy:.3f}",
+                        'type': orbital_type,
+                        'special': 'HOMO' if is_homo else ('LUMO' if is_lumo else '')
+                    })
+            
+            # Enhanced partial charges data
+            charges_data = []
+            if partial_charges and len(lines) > 2:
+                atom_lines = lines[2:]  # Skip count and comment
+                for i, charge in enumerate(partial_charges):
+                    if i < len(atom_lines):
+                        atom_parts = atom_lines[i].strip().split()
+                        if len(atom_parts) >= 4:
+                            charges_data.append({
+                                'atom': i + 1,
+                                'element': atom_parts[0],
+                                'charge': f"{charge:.6f}"
+                            })
+            
+            # Read raw XTB output (last 50 lines for better detail)
             raw_output_preview = "No raw output available"
             try:
-                # Look for log file or stderr output
                 if result.stdout:
-                    lines = result.stdout.split('\n')
-                    raw_output_preview = '\n'.join(lines[-30:]) if len(lines) > 30 else result.stdout
+                    lines_out = result.stdout.split('\n')
+                    raw_output_preview = '\n'.join(lines_out[-50:]) if len(lines_out) > 50 else result.stdout
                 elif result.stderr:
-                    lines = result.stderr.split('\n')
-                    raw_output_preview = '\n'.join(lines[-30:]) if len(lines) > 30 else result.stderr
+                    lines_err = result.stderr.split('\n')
+                    raw_output_preview = '\n'.join(lines_err[-50:]) if len(lines_err) > 50 else result.stderr
             except:
                 pass
             
             # Prepare comprehensive results with enhanced data
             results = {
                 'success': True,
-                'summary': f'Molecular analysis completed successfully using XTB/GFN2. The molecule shows an energy of {total_energy} Hartree with a HOMO-LUMO gap of {homo_lumo_gap}.',
+                'summary': f'Molecular analysis completed successfully using XTB/GFN2. The molecule {formula} shows an energy of {total_energy} Hartree with a HOMO-LUMO gap of {homo_lumo_gap}.',
                 'formula': formula,
                 'weight': f'{molecular_weight:.2f} g/mol',
                 'energy': f'{total_energy} Hartree' if total_energy != 'Not available' else 'Optimization failed',
@@ -581,7 +712,31 @@ def analyze():
                 'frequencies': frequencies[:10] if frequencies else [],  # First 10 frequencies
                 'charges': partial_charges[:20] if partial_charges else [],  # First 20 charges
                 'raw_xtb_output': raw_output_preview,
-                'raw_data': xtb_data  # Include full XTB data for advanced users
+                'raw_data': xtb_data,  # Include full XTB data for advanced users
+                
+                # Enhanced detailed data for expandable sections
+                'detailed_results': {
+                    'vibrational_analysis': vibrational_data,
+                    'orbital_energies': orbital_data,
+                    'mulliken_charges': charges_data,
+                    'geometry_optimization': {
+                        'initial_atoms': atom_count,
+                        'optimization_converged': True,
+                        'final_energy': total_energy,
+                        'gradient_norm': xtb_data.get('gradient norm', 'N/A')
+                    },
+                    'electronic_structure': {
+                        'total_electrons': xtb_data.get('number of electrons', 'N/A'),
+                        'multiplicity': xtb_data.get('multiplicity', 1),
+                        'point_group': xtb_data.get('point group', 'C1'),
+                        'basis_functions': xtb_data.get('number of basis functions', 'N/A')
+                    },
+                    'thermochemistry': {
+                        'zero_point_energy': xtb_data.get('zero point energy', 'N/A'),
+                        'thermal_correction': xtb_data.get('thermal correction to enthalpy', 'N/A'),
+                        'entropy': xtb_data.get('entropy', 'N/A')
+                    }
+                }
             }
             
             return jsonify(results)

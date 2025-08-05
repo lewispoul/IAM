@@ -134,7 +134,12 @@
                             <!-- SMILES Input -->
                             <div class="mb-1">
                                 <label for="smilesMolInput" class="form-label fw-medium" style="font-size: 0.75rem;">SMILES/MOL</label>
-                                <input type="text" id="smilesMolInput" class="form-control form-control-sm" placeholder="Enter SMILES (e.g., CCO)" style="font-size: 0.8rem;">
+                                <div class="input-group input-group-sm">
+                                    <input type="text" id="smilesMolInput" class="form-control form-control-sm" placeholder="Enter SMILES (e.g., CCO)" style="font-size: 0.8rem;">
+                                    <button class="btn btn-outline-success" type="button" onclick="convertSMILESFromInput()" title="Convert SMILES to XYZ">
+                                        <i class="bi bi-arrow-down"></i>
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- XYZ Coordinates -->
@@ -565,9 +570,14 @@
 
         // Handle SMILES input
         function handleSmilesInput() {
-            const smiles = prompt("Enter SMILES string (e.g., CCO for ethanol):");
-            if (smiles && smiles.trim()) {
-                convertSMILESToXYZ(smiles.trim());
+            const smilesInput = document.getElementById('smilesMolInput').value.trim();
+            if (smilesInput) {
+                convertSMILESToXYZ(smilesInput);
+            } else {
+                const smiles = prompt("Enter SMILES string (e.g., CCO for ethanol):");
+                if (smiles && smiles.trim()) {
+                    convertSMILESToXYZ(smiles.trim());
+                }
             }
         }
 
@@ -619,6 +629,20 @@
                 showLoading(false);
                 showError('Network error: ' + error.message);
             });
+        }
+
+        // Convert SMILES from input field
+        function convertSMILESFromInput() {
+            const smilesInput = document.getElementById('smilesMolInput');
+            const smiles = smilesInput.value.trim();
+            
+            if (!smiles) {
+                showToast('Please enter a SMILES string first');
+                smilesInput.focus();
+                return;
+            }
+            
+            convertSMILESToXYZ(smiles);
         }
 
         // Render molecule in 3D viewer
@@ -767,33 +791,32 @@
                     // Use MOL data from Ketcher (preferred)
                     requestData.mol_data = molData;
                 } else if (file) {
-                    // Read file content and handle different formats
-                    const fileContent = await file.text();
-                    if (file.name.endsWith('.mol')) {
-                        requestData.mol_data = fileContent;
-                    } else if (file.name.endsWith('.xyz')) {
-                        // For XYZ files, convert to MOL using backend
-                        try {
-                            const convertResponse = await fetch('/mol_to_xyz', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ xyz: fileContent })
-                            });
-                            const convertResult = await convertResponse.json();
-                            
-                            if (convertResult.success) {
-                                // Try to convert XYZ back to MOL via SMILES or use legacy
-                                return runAnalysisLegacy();
-                            } else {
-                                // Use legacy method for XYZ files
-                                return runAnalysisLegacy();
-                            }
-                        } catch (e) {
-                            return runAnalysisLegacy();
+                    // Handle file upload - send as FormData for backend to process
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('analysis_type', 'basic');
+                    
+                    const response = await fetch('/analyze', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+                    
+                    showLoading(false);
+                    document.getElementById('analysisSpinner').classList.add('d-none');
+                    
+                    if (result.success) {
+                        if (result.xyz_structure) {
+                            currentMolecule = result.xyz_structure;
+                            document.getElementById('xyzInput').value = result.xyz_structure;
+                            renderMolecule(result.xyz_structure);
                         }
+                        displayResults(result);
+                        showToast('Analysis completed successfully!');
                     } else {
-                        return runAnalysisLegacy();
+                        showError('Analysis failed: ' + result.error);
                     }
+                    return;
                 } else if (xyzData) {
                     // Handle XYZ data from text input - use legacy method
                     return runAnalysisLegacy();
@@ -953,11 +976,17 @@
                 if (data.energy) {
                     html += `<tr><td><strong>Total Energy</strong></td><td><code>${data.energy}</code></td></tr>`;
                 }
-                if (data.homo_lumo_gap && data.homo_lumo_gap !== 'N/A') {
-                    html += `<tr><td><strong>HOMO-LUMO Gap</strong></td><td>${data.homo_lumo_gap} eV</td></tr>`;
+                if (data.homo && data.homo !== 'N/A') {
+                    html += `<tr><td><strong>HOMO Energy</strong></td><td>${data.homo} eV</td></tr>`;
                 }
-                if (data.dipole_moment && data.dipole_moment !== 'N/A') {
-                    html += `<tr><td><strong>Dipole Moment</strong></td><td>${data.dipole_moment}</td></tr>`;
+                if (data.lumo && data.lumo !== 'N/A') {
+                    html += `<tr><td><strong>LUMO Energy</strong></td><td>${data.lumo} eV</td></tr>`;
+                }
+                if (data.homo_lumo_gap && data.homo_lumo_gap !== 'N/A') {
+                    html += `<tr><td><strong>HOMO-LUMO Gap</strong></td><td>${data.homo_lumo_gap}</td></tr>`;
+                }
+                if (data.dipole_vector && data.dipole_vector.total !== 'N/A') {
+                    html += `<tr><td><strong>Dipole Moment</strong></td><td>${data.dipole_vector.total} Debye</td></tr>`;
                 }
                 if (data.method) {
                     html += `<tr><td><strong>Method</strong></td><td><span class="badge bg-secondary">${data.method}</span></td></tr>`;
@@ -965,10 +994,98 @@
                 
                 html += '</table>';
                 
-                // Properties section
-                if (data.properties) {
-                    html += '<h6><i class="bi bi-info-circle"></i> Properties</h6>';
-                    html += `<p class="small text-muted">${data.properties}</p>`;
+                // Enhanced Electronic Structure Section
+                if (data.detailed_results && data.detailed_results.electronic_structure) {
+                    const elec = data.detailed_results.electronic_structure;
+                    html += '<h6><i class="bi bi-cpu"></i> Electronic Structure</h6>';
+                    html += '<table class="table table-sm">';
+                    if (elec.total_electrons !== 'N/A') html += `<tr><td>Total Electrons</td><td>${elec.total_electrons}</td></tr>`;
+                    if (elec.multiplicity !== 1) html += `<tr><td>Multiplicity</td><td>${elec.multiplicity}</td></tr>`;
+                    if (elec.point_group !== 'C1') html += `<tr><td>Point Group</td><td>${elec.point_group}</td></tr>`;
+                    html += '</table>';
+                }
+                
+                // Dipole Vector Details
+                if (data.dipole_vector && data.dipole_vector.x !== 'N/A') {
+                    html += '<h6><i class="bi bi-arrow-up-right"></i> Dipole Vector Components</h6>';
+                    html += '<table class="table table-sm">';
+                    html += `<tr><td>X-component</td><td>${data.dipole_vector.x} D</td></tr>`;
+                    html += `<tr><td>Y-component</td><td>${data.dipole_vector.y} D</td></tr>`;
+                    html += `<tr><td>Z-component</td><td>${data.dipole_vector.z} D</td></tr>`;
+                    html += `<tr><td><strong>Total Magnitude</strong></td><td><strong>${data.dipole_vector.total}</strong></td></tr>`;
+                    html += '</table>';
+                }
+                
+                // Orbital Energies Table
+                if (data.detailed_results && data.detailed_results.orbital_energies && data.detailed_results.orbital_energies.length > 0) {
+                    html += '<h6><i class="bi bi-diagram-3"></i> Molecular Orbitals</h6>';
+                    html += `<details class="mb-3">
+                        <summary class="btn btn-outline-primary btn-sm">View Orbital Energies (${data.detailed_results.orbital_energies.length} orbitals)</summary>
+                        <div class="mt-2">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr><th>Index</th><th>Energy (eV)</th><th>Type</th><th>Special</th></tr>
+                                </thead>
+                                <tbody>`;
+                    
+                    data.detailed_results.orbital_energies.forEach(orbital => {
+                        const rowClass = orbital.special ? (orbital.special === 'HOMO' ? 'table-success' : 'table-warning') : '';
+                        html += `<tr class="${rowClass}">
+                            <td>${orbital.index}</td>
+                            <td>${orbital.energy}</td>
+                            <td>${orbital.type}</td>
+                            <td>${orbital.special ? `<span class="badge bg-info">${orbital.special}</span>` : ''}</td>
+                        </tr>`;
+                    });
+                    
+                    html += `</tbody></table></div></details>`;
+                }
+                
+                // Mulliken Charges
+                if (data.detailed_results && data.detailed_results.mulliken_charges && data.detailed_results.mulliken_charges.length > 0) {
+                    html += '<h6><i class="bi bi-lightning"></i> Partial Charges (Mulliken)</h6>';
+                    html += `<details class="mb-3">
+                        <summary class="btn btn-outline-info btn-sm">View Atomic Charges (${data.detailed_results.mulliken_charges.length} atoms)</summary>
+                        <div class="mt-2">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr><th>Atom</th><th>Element</th><th>Charge (e)</th></tr>
+                                </thead>
+                                <tbody>`;
+                    
+                    data.detailed_results.mulliken_charges.forEach(charge => {
+                        const chargeClass = parseFloat(charge.charge) > 0 ? 'text-danger' : (parseFloat(charge.charge) < -0.1 ? 'text-primary' : 'text-muted');
+                        html += `<tr>
+                            <td>${charge.atom}</td>
+                            <td><span class="badge bg-secondary">${charge.element}</span></td>
+                            <td class="${chargeClass}">${charge.charge}</td>
+                        </tr>`;
+                    });
+                    
+                    html += `</tbody></table></div></details>`;
+                }
+                
+                // Vibrational Analysis
+                if (data.detailed_results && data.detailed_results.vibrational_analysis && data.detailed_results.vibrational_analysis.length > 0) {
+                    html += '<h6><i class="bi bi-soundwave"></i> Vibrational Frequencies</h6>';
+                    html += `<details class="mb-3">
+                        <summary class="btn btn-outline-success btn-sm">View Frequencies (${data.detailed_results.vibrational_analysis.length} modes)</summary>
+                        <div class="mt-2">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr><th>Mode</th><th>Frequency (cm⁻¹)</th><th>Intensity</th></tr>
+                                </thead>
+                                <tbody>`;
+                    
+                    data.detailed_results.vibrational_analysis.forEach(vib => {
+                        html += `<tr>
+                            <td>${vib.mode}</td>
+                            <td>${vib.frequency}</td>
+                            <td>${vib.intensity}</td>
+                        </tr>`;
+                    });
+                    
+                    html += `</tbody></table></div></details>`;
                 }
                 
                 // Optimized structure
@@ -980,12 +1097,21 @@
                     </details>`;
                 }
                 
+                // Raw XTB Output
+                if (data.raw_xtb_output && data.raw_xtb_output !== "No raw output available") {
+                    html += '<h6><i class="bi bi-terminal"></i> Raw Calculation Output</h6>';
+                    html += `<details class="mb-3">
+                        <summary class="btn btn-outline-dark btn-sm">View Raw XTB Output</summary>
+                        <pre class="small mt-2 p-2 bg-dark text-light rounded" style="max-height: 300px; overflow-y: auto;">${data.raw_xtb_output}</pre>
+                    </details>`;
+                }
+                
                 // Advanced data for experts
                 if (data.raw_data) {
-                    html += '<h6><i class="bi bi-code-square"></i> Advanced Data</h6>';
+                    html += '<h6><i class="bi bi-code-square"></i> Complete Calculation Data</h6>';
                     html += `<details>
-                        <summary class="btn btn-outline-info btn-sm">View Raw Calculation Data</summary>
-                        <pre class="small mt-2 p-2 bg-light rounded" style="max-height: 300px; overflow-y: auto;">${JSON.stringify(data.raw_data, null, 2)}</pre>
+                        <summary class="btn btn-outline-info btn-sm">View Complete JSON Data</summary>
+                        <pre class="small mt-2 p-2 bg-light rounded" style="max-height: 400px; overflow-y: auto;">${JSON.stringify(data.raw_data, null, 2)}</pre>
                     </details>`;
                 }
                 
@@ -995,6 +1121,7 @@
                 summaryContent.innerHTML = `<div class="alert alert-danger">
                     <h6>Analysis Failed</h6>
                     <p>${data.error || 'Unknown error occurred'}</p>
+                    ${data.details ? `<pre class="small mt-2">${data.details}</pre>` : ''}
                 </div>`;
             }
         }
