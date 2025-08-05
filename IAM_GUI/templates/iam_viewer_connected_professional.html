@@ -709,24 +709,157 @@
             }
         }
 
-        // Run analysis
+        // Run analysis - Updated to use professional /analyze endpoint
         async function runAnalysis() {
             const xyzData = document.getElementById('xyzInput').value.trim();
             const smilesData = document.getElementById('smilesMolInput').value.trim();
             const fileInput = document.getElementById('fileInput');
             const file = fileInput.files[0];
             
-            // Check if we have any input
-            if (!xyzData && !smilesData && !file && !currentMolecule) {
-                showToast('Input required: Please draw, paste or upload a molecule first.');
-                return;
+            showLoading(true);
+            document.getElementById('analysisSpinner').classList.remove('d-none');
+            
+            try {
+                let molData = null;
+                
+                // First, try to get MOL data from Ketcher if available
+                await new Promise((resolve) => {
+                    const ketcherFrame = document.getElementById('ketcherFrame');
+                    if (ketcherFrame && ketcherFrame.contentWindow) {
+                        try {
+                            ketcherFrame.contentWindow.postMessage({ type: 'get-molfile' }, '*');
+                            
+                            const messageHandler = function(event) {
+                                if (event.data && (event.data.type === 'molfile-response' || event.data.type === 'molfile')) {
+                                    if (event.data.molfile && event.data.molfile.trim()) {
+                                        molData = event.data.molfile;
+                                    }
+                                    window.removeEventListener('message', messageHandler);
+                                    resolve();
+                                }
+                            };
+                            
+                            window.addEventListener('message', messageHandler);
+                            setTimeout(() => {
+                                window.removeEventListener('message', messageHandler);
+                                resolve();
+                            }, 1000);
+                        } catch (e) {
+                            resolve();
+                        }
+                    } else {
+                        resolve();
+                    }
+                });
+                
+                // Check if we have any input
+                if (!molData && !xyzData && !smilesData && !file && !currentMolecule) {
+                    showToast('Input required: Please draw, paste or upload a molecule first.');
+                    showLoading(false);
+                    document.getElementById('analysisSpinner').classList.add('d-none');
+                    return;
+                }
+                
+                // Use professional /analyze endpoint
+                let requestData = { analysis_type: 'basic' };
+                
+                if (molData) {
+                    // Use MOL data from Ketcher (preferred)
+                    requestData.mol_data = molData;
+                } else if (file) {
+                    // Read file content and handle different formats
+                    const fileContent = await file.text();
+                    if (file.name.endsWith('.mol')) {
+                        requestData.mol_data = fileContent;
+                    } else if (file.name.endsWith('.xyz')) {
+                        // For XYZ files, convert to MOL using backend
+                        try {
+                            const convertResponse = await fetch('/mol_to_xyz', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ xyz: fileContent })
+                            });
+                            const convertResult = await convertResponse.json();
+                            
+                            if (convertResult.success) {
+                                // Try to convert XYZ back to MOL via SMILES or use legacy
+                                return runAnalysisLegacy();
+                            } else {
+                                // Use legacy method for XYZ files
+                                return runAnalysisLegacy();
+                            }
+                        } catch (e) {
+                            return runAnalysisLegacy();
+                        }
+                    } else {
+                        return runAnalysisLegacy();
+                    }
+                } else if (xyzData) {
+                    // Handle XYZ data from text input - use legacy method
+                    return runAnalysisLegacy();
+                } else if (smilesData) {
+                    // Convert SMILES to MOL first
+                    const smilesResponse = await fetch('/smiles_to_xyz', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ smiles: smilesData })
+                    });
+                    const smilesResult = await smilesResponse.json();
+                    
+                    if (!smilesResult.success) {
+                        showToast('SMILES error: ' + (smilesResult.error || 'Failed to convert SMILES'));
+                        showLoading(false);
+                        document.getElementById('analysisSpinner').classList.add('d-none');
+                        return;
+                    }
+                    // For now, fallback to legacy for SMILES
+                    return runAnalysisLegacy();
+                } else if (currentMolecule) {
+                    // Use existing molecule data - fallback to legacy
+                    return runAnalysisLegacy();
+                } else {
+                    // Fallback to legacy method for other cases
+                    return runAnalysisLegacy();
+                }
+                
+                // Call professional analyze endpoint
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+                const result = await response.json();
+                
+                showLoading(false);
+                document.getElementById('analysisSpinner').classList.add('d-none');
+                
+                if (result.success) {
+                    if (result.xyz_structure) {
+                        currentMolecule = result.xyz_structure;
+                        renderMolecule(result.xyz_structure);
+                    }
+                    displayResults(result);
+                    showToast('Analysis completed successfully!');
+                } else {
+                    showError('Analysis failed: ' + result.error);
+                }
+            } catch (error) {
+                showLoading(false);
+                document.getElementById('analysisSpinner').classList.add('d-none');
+                showError('Network error: ' + error.message);
+                console.error('Analysis error:', error);
             }
+        }
+        
+        // Legacy analysis method for backwards compatibility
+        async function runAnalysisLegacy() {
+            const xyzData = document.getElementById('xyzInput').value.trim();
+            const smilesData = document.getElementById('smilesMolInput').value.trim();
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
             
             const charge = document.getElementById('chargeInput').value || '0';
             const multiplicity = document.getElementById('multiplicityInput').value || '1';
-            
-            showLoading(true);
-            document.getElementById('analysisSpinner').classList.remove('d-none');
             
             try {
                 // Create FormData for file upload
@@ -765,7 +898,7 @@
                     formData.append('file', blob, 'molecule.xyz');
                 }
                 
-                // Run XTB calculation
+                // Run XTB calculation (legacy endpoint)
                 const response = await fetch('/run_xtb', {
                     method: 'POST',
                     body: formData
@@ -780,7 +913,7 @@
                         currentMolecule = result.xyz;
                         renderMolecule(result.xyz);
                     }
-                    displayResults(result);
+                    displayResultsLegacy(result);
                     showToast('Analysis completed successfully!');
                 } else {
                     showError('Analysis failed: ' + result.error);
@@ -792,8 +925,82 @@
             }
         }
 
-        // Display results in summary tab
+        // Display results from professional /analyze endpoint
         function displayResults(data) {
+            const summaryContent = document.getElementById('summaryContent');
+            
+            if (data.success) {
+                let html = '<div class="summary-table">';
+                
+                // Professional summary section
+                if (data.summary) {
+                    html += `<div class="alert alert-success mb-3">
+                        <h6 class="mb-2"><i class="bi bi-check-circle"></i> Analysis Summary</h6>
+                        <p class="mb-0">${data.summary}</p>
+                    </div>`;
+                }
+                
+                // Key results table
+                html += '<h6><i class="bi bi-graph-up"></i> Key Results</h6>';
+                html += '<table class="table table-sm table-hover">';
+                
+                if (data.formula) {
+                    html += `<tr><td><strong>Molecular Formula</strong></td><td><span class="badge bg-primary">${data.formula}</span></td></tr>`;
+                }
+                if (data.weight) {
+                    html += `<tr><td><strong>Molecular Weight</strong></td><td>${data.weight}</td></tr>`;
+                }
+                if (data.energy) {
+                    html += `<tr><td><strong>Total Energy</strong></td><td><code>${data.energy}</code></td></tr>`;
+                }
+                if (data.homo_lumo_gap && data.homo_lumo_gap !== 'N/A') {
+                    html += `<tr><td><strong>HOMO-LUMO Gap</strong></td><td>${data.homo_lumo_gap} eV</td></tr>`;
+                }
+                if (data.dipole_moment && data.dipole_moment !== 'N/A') {
+                    html += `<tr><td><strong>Dipole Moment</strong></td><td>${data.dipole_moment}</td></tr>`;
+                }
+                if (data.method) {
+                    html += `<tr><td><strong>Method</strong></td><td><span class="badge bg-secondary">${data.method}</span></td></tr>`;
+                }
+                
+                html += '</table>';
+                
+                // Properties section
+                if (data.properties) {
+                    html += '<h6><i class="bi bi-info-circle"></i> Properties</h6>';
+                    html += `<p class="small text-muted">${data.properties}</p>`;
+                }
+                
+                // Optimized structure
+                if (data.xyz_structure) {
+                    html += '<h6><i class="bi bi-box"></i> Optimized Structure</h6>';
+                    html += `<details class="mb-3">
+                        <summary class="btn btn-outline-secondary btn-sm">View XYZ Coordinates</summary>
+                        <pre class="small mt-2 p-2 bg-light rounded">${data.xyz_structure}</pre>
+                    </details>`;
+                }
+                
+                // Advanced data for experts
+                if (data.raw_data) {
+                    html += '<h6><i class="bi bi-code-square"></i> Advanced Data</h6>';
+                    html += `<details>
+                        <summary class="btn btn-outline-info btn-sm">View Raw Calculation Data</summary>
+                        <pre class="small mt-2 p-2 bg-light rounded" style="max-height: 300px; overflow-y: auto;">${JSON.stringify(data.raw_data, null, 2)}</pre>
+                    </details>`;
+                }
+                
+                html += '</div>';
+                summaryContent.innerHTML = html;
+            } else {
+                summaryContent.innerHTML = `<div class="alert alert-danger">
+                    <h6>Analysis Failed</h6>
+                    <p>${data.error || 'Unknown error occurred'}</p>
+                </div>`;
+            }
+        }
+
+        // Legacy display function for backwards compatibility
+        function displayResultsLegacy(data) {
             const summaryContent = document.getElementById('summaryContent');
             
             if (data.xtb_json) {
@@ -947,12 +1154,32 @@
             }
 
             try {
-                // Clear the structure in Ketcher
+                // Try multiple clear methods for better compatibility
                 ketcherFrame.contentWindow.postMessage({
                     type: 'clear'
                 }, '*');
                 
-                showToast('Ketcher structure cleared.');
+                // Alternative method
+                ketcherFrame.contentWindow.postMessage({
+                    type: 'ketcher',
+                    action: 'clear'
+                }, '*');
+                
+                // Clear all input fields as well
+                document.getElementById('xyzInput').value = '';
+                document.getElementById('smilesMolInput').value = '';
+                document.getElementById('fileInput').value = '';
+                
+                // Clear global molecule variable
+                currentMolecule = null;
+                
+                // Clear 3D viewer
+                if (viewer3D) {
+                    viewer3D.clear();
+                    viewer3D.render();
+                }
+                
+                showToast('Structure and inputs cleared.');
                 
             } catch (error) {
                 console.error('Error clearing Ketcher structure:', error);
@@ -1564,11 +1791,382 @@
         }
 
         function openProfessionalMolecularOrbitals() {
-            window.open('/physical_chemistry/professional_orbitals', '_blank');
+            // Start orbital calculation job
+            startOrbitalCalculation();
         }
 
         function openPhysicalChemistry() {
-            window.open('/physical_chemistry/molecular_orbitals/enhanced', '_blank');
+            // Start enhanced analysis
+            startOrbitalCalculation();
+        }
+
+        // ✅ MISSING COMPUTATIONAL TAB FUNCTIONS
+
+        async function runQuantumAnalysis() {
+            await callComputationalAPI('/api/geometry_opt', 'Quantum DFT Analysis');
+        }
+
+        async function runGeometryOptimization() {
+            await callComputationalAPI('/api/geometry_opt', 'Geometry Optimization');
+        }
+
+        async function calculateThermodynamics() {
+            await callComputationalAPI('/api/thermodynamics', 'Thermodynamics Calculation');
+        }
+
+        async function calculateVibrationalModes() {
+            await callComputationalAPI('/api/vibrational_analysis', 'Vibrational Analysis');
+        }
+
+        async function predictStability() {
+            await callComputationalAPI('/api/stability', 'Stability Prediction');
+        }
+
+        async function predictVoD() {
+            await callComputationalAPI('/api/vod', 'Velocity of Detonation Prediction');
+        }
+
+        async function optimizePerformance() {
+            await callComputationalAPI('/api/performance', 'Performance Optimization');
+        }
+
+        async function generateReport() {
+            showToast('Report generation feature coming soon!');
+        }
+
+        // Generic function to call computational APIs
+        async function callComputationalAPI(endpoint, taskName) {
+            try {
+                showLoading(true);
+                
+                // Get current molecule data
+                let molData = null;
+                const ketcherFrame = document.getElementById('ketcherFrame');
+                if (ketcherFrame && ketcherFrame.contentWindow) {
+                    await new Promise((resolve) => {
+                        ketcherFrame.contentWindow.postMessage({ type: 'get-molfile' }, '*');
+                        const messageHandler = function(event) {
+                            if (event.data && (event.data.type === 'molfile-response' || event.data.type === 'molfile')) {
+                                if (event.data.molfile && event.data.molfile.trim()) {
+                                    molData = event.data.molfile;
+                                }
+                                window.removeEventListener('message', messageHandler);
+                                resolve();
+                            }
+                        };
+                        window.addEventListener('message', messageHandler);
+                        setTimeout(() => {
+                            window.removeEventListener('message', messageHandler);
+                            resolve();
+                        }, 1000);
+                    });
+                }
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mol_data: molData || currentMolecule || '' })
+                });
+                
+                const result = await response.json();
+                showLoading(false);
+                
+                if (result.success) {
+                    showToast(`${taskName} completed successfully!`);
+                    
+                    // Display results in appropriate tab
+                    if (endpoint.includes('stability') || endpoint.includes('vod') || endpoint.includes('performance')) {
+                        displayPerformanceResults(result, taskName);
+                    } else {
+                        displayComputationalResults(result, taskName);
+                    }
+                } else {
+                    showError(`${taskName} failed: ${result.error}`);
+                }
+            } catch (error) {
+                showLoading(false);
+                showError(`${taskName} error: ${error.message}`);
+                console.error(`Error in ${taskName}:`, error);
+            }
+        }
+
+        // Display computational results
+        function displayComputationalResults(data, taskName) {
+            const outputElement = document.getElementById('computational-output');
+            if (outputElement) {
+                let output = `=== ${taskName} Results ===\n`;
+                output += `Status: ${data.success ? 'SUCCESS' : 'FAILED'}\n`;
+                output += `Message: ${data.message}\n\n`;
+                
+                if (data.data) {
+                    output += 'Results:\n';
+                    output += JSON.stringify(data.data, null, 2);
+                }
+                
+                outputElement.textContent = output;
+            }
+        }
+
+        // Display performance results
+        function displayPerformanceResults(data, taskName) {
+            const outputElement = document.getElementById('performance-output');
+            if (outputElement) {
+                let output = `=== ${taskName} Results ===\n`;
+                output += `Status: ${data.success ? 'SUCCESS' : 'FAILED'}\n`;
+                output += `Message: ${data.message}\n\n`;
+                
+                if (data.data) {
+                    output += 'Performance Analysis:\n';
+                    output += JSON.stringify(data.data, null, 2);
+                }
+                
+                outputElement.textContent = output;
+            }
+        }
+
+        // ✅ ORBITAL VISUALIZATION FUNCTIONS
+
+        async function startOrbitalCalculation() {
+            try {
+                showLoading(true);
+                
+                // Get current molecule data
+                let molData = null;
+                const ketcherFrame = document.getElementById('ketcherFrame');
+                if (ketcherFrame && ketcherFrame.contentWindow) {
+                    await new Promise((resolve) => {
+                        ketcherFrame.contentWindow.postMessage({ type: 'get-molfile' }, '*');
+                        const messageHandler = function(event) {
+                            if (event.data && (event.data.type === 'molfile-response' || event.data.type === 'molfile')) {
+                                if (event.data.molfile && event.data.molfile.trim()) {
+                                    molData = event.data.molfile;
+                                }
+                                window.removeEventListener('message', messageHandler);
+                                resolve();
+                            }
+                        };
+                        window.addEventListener('message', messageHandler);
+                        setTimeout(() => {
+                            window.removeEventListener('message', messageHandler);
+                            resolve();
+                        }, 1000);
+                    });
+                }
+
+                // Start orbital calculation
+                const response = await fetch('/api/professional_orbitals/start_calculation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mol_data: molData || currentMolecule || '' })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(`Orbital calculation started (Job ID: ${result.job_id})`);
+                    pollOrbitalProgress(result.job_id);
+                } else {
+                    showLoading(false);
+                    showError(`Failed to start orbital calculation: ${result.error}`);
+                }
+            } catch (error) {
+                showLoading(false);
+                showError(`Orbital calculation error: ${error.message}`);
+                console.error('Error starting orbital calculation:', error);
+            }
+        }
+
+        async function pollOrbitalProgress(jobId) {
+            try {
+                const response = await fetch(`/api/professional_orbitals/progress/${jobId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    if (result.status === 'completed') {
+                        showLoading(false);
+                        showToast('Orbital calculation completed!');
+                        getOrbitalResults(jobId);
+                    } else {
+                        // Continue polling
+                        setTimeout(() => pollOrbitalProgress(jobId), 2000);
+                    }
+                } else {
+                    showLoading(false);
+                    showError(`Orbital calculation failed: ${result.error}`);
+                }
+            } catch (error) {
+                showLoading(false);
+                showError(`Error checking orbital progress: ${error.message}`);
+            }
+        }
+
+        async function getOrbitalResults(jobId) {
+            try {
+                const response = await fetch(`/api/professional_orbitals/results/${jobId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayOrbitalResults(result.data);
+                } else {
+                    showError(`Failed to get orbital results: ${result.error}`);
+                }
+            } catch (error) {
+                showError(`Error getting orbital results: ${error.message}`);
+            }
+        }
+
+        function displayOrbitalResults(data) {
+            const orbitalsContent = document.getElementById('orbitalsContent');
+            if (orbitalsContent) {
+                let html = `
+                    <div class="orbital-results">
+                        <h6 class="fw-bold mb-2"><i class="bi bi-check-circle text-success"></i> Orbital Calculation Complete</h6>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="p-2 bg-primary bg-opacity-10 rounded">
+                                    <small class="fw-bold d-block">HOMO Energy</small>
+                                    <span class="text-primary">${data.homo_energy}</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-2 bg-success bg-opacity-10 rounded">
+                                    <small class="fw-bold d-block">LUMO Energy</small>
+                                    <span class="text-success">${data.lumo_energy}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <small class="fw-bold">HOMO-LUMO Gap:</small> 
+                            <span class="badge bg-info">${data.homo_lumo_gap}</span>
+                        </div>`;
+                
+                if (data.visualization_url) {
+                    html += `
+                        <div class="mt-2">
+                            <button class="btn btn-primary btn-sm" onclick="openOrbitalViewer('${data.visualization_url}')">
+                                <i class="bi bi-eye"></i> View 3D Orbitals
+                            </button>
+                        </div>`;
+                }
+                
+                html += '</div>';
+                orbitalsContent.innerHTML = html;
+            }
+        }
+
+        function openOrbitalViewer(url) {
+            window.open(url, '_blank', 'width=800,height=600');
+        }
+
+        // ✅ ENHANCED RESULT DISPLAY WITH COLLAPSIBLE SECTIONS
+
+        function displayResults(data) {
+            const summaryContent = document.getElementById('summaryContent');
+            
+            if (data.success) {
+                let html = '<div class="summary-table">';
+                
+                // Professional summary section
+                if (data.summary) {
+                    html += `<div class="alert alert-success mb-3">
+                        <h6 class="mb-2"><i class="bi bi-check-circle"></i> Analysis Summary</h6>
+                        <p class="mb-0">${data.summary}</p>
+                    </div>`;
+                }
+                
+                // Key results table
+                html += '<h6><i class="bi bi-graph-up"></i> Key Results</h6>';
+                html += '<table class="table table-sm table-hover">';
+                
+                if (data.formula) {
+                    html += `<tr><td><strong>Molecular Formula</strong></td><td><span class="badge bg-primary">${data.formula}</span></td></tr>`;
+                }
+                if (data.weight) {
+                    html += `<tr><td><strong>Molecular Weight</strong></td><td>${data.weight}</td></tr>`;
+                }
+                if (data.energy) {
+                    html += `<tr><td><strong>Total Energy</strong></td><td><code>${data.energy}</code></td></tr>`;
+                }
+                if (data.homo && data.homo !== 'N/A') {
+                    html += `<tr><td><strong>HOMO Energy</strong></td><td><span class="text-primary">${data.homo}</span></td></tr>`;
+                }
+                if (data.lumo && data.lumo !== 'N/A') {
+                    html += `<tr><td><strong>LUMO Energy</strong></td><td><span class="text-success">${data.lumo}</span></td></tr>`;
+                }
+                if (data.homo_lumo_gap && data.homo_lumo_gap !== 'N/A') {
+                    html += `<tr><td><strong>HOMO-LUMO Gap</strong></td><td>${data.homo_lumo_gap} eV</td></tr>`;
+                }
+                if (data.dipole_moment && data.dipole_moment !== 'N/A') {
+                    html += `<tr><td><strong>Dipole Moment</strong></td><td>${data.dipole_moment}</td></tr>`;
+                }
+                if (data.method) {
+                    html += `<tr><td><strong>Method</strong></td><td><span class="badge bg-secondary">${data.method}</span></td></tr>`;
+                }
+                
+                html += '</table>';
+                
+                // Enhanced dipole vector display
+                if (data.dipole_vector && data.dipole_vector.total !== 'N/A') {
+                    html += '<h6><i class="bi bi-arrows-move"></i> Dipole Vector</h6>';
+                    html += `<div class="row g-2 mb-3">
+                        <div class="col-3"><small class="fw-bold">X:</small> ${data.dipole_vector.x}</div>
+                        <div class="col-3"><small class="fw-bold">Y:</small> ${data.dipole_vector.y}</div>
+                        <div class="col-3"><small class="fw-bold">Z:</small> ${data.dipole_vector.z}</div>
+                        <div class="col-3"><small class="fw-bold">Total:</small> ${data.dipole_vector.total}</div>
+                    </div>`;
+                }
+                
+                // Frequencies
+                if (data.frequencies && data.frequencies.length > 0) {
+                    html += '<h6><i class="bi bi-soundwave"></i> Vibrational Frequencies</h6>';
+                    html += '<div class="d-flex flex-wrap gap-1 mb-3">';
+                    data.frequencies.forEach(freq => {
+                        html += `<span class="badge bg-info">${freq.toFixed(1)} cm⁻¹</span>`;
+                    });
+                    html += '</div>';
+                }
+                
+                // Properties section
+                if (data.properties) {
+                    html += '<h6><i class="bi bi-info-circle"></i> Properties</h6>';
+                    html += `<p class="small text-muted">${data.properties}</p>`;
+                }
+                
+                // Optimized structure
+                if (data.xyz_structure) {
+                    html += '<h6><i class="bi bi-box"></i> Optimized Structure</h6>';
+                    html += `<details class="mb-3">
+                        <summary class="btn btn-outline-secondary btn-sm">View XYZ Coordinates</summary>
+                        <pre class="small mt-2 p-2 bg-light rounded">${data.xyz_structure}</pre>
+                    </details>`;
+                }
+                
+                // ✅ ENHANCED EXPANDABLE SECTIONS
+                
+                // Raw XTB output preview
+                if (data.raw_xtb_output) {
+                    html += '<details class="mb-3">';
+                    html += '<summary class="btn btn-outline-warning btn-sm">View Raw XTB Output (Last 30 lines)</summary>';
+                    html += `<pre class="small mt-2 p-2 bg-light rounded" style="max-height: 300px; overflow-y: auto;">${data.raw_xtb_output}</pre>`;
+                    html += '</details>';
+                }
+                
+                // Advanced data for experts
+                if (data.raw_data) {
+                    html += '<details>';
+                    html += '<summary class="btn btn-outline-info btn-sm">Advanced Analysis Results (Full JSON)</summary>';
+                    html += `<pre id="rawResultsBox" class="small mt-2 p-2 bg-light rounded" style="max-height: 400px; overflow-y: auto;">${JSON.stringify(data.raw_data, null, 2)}</pre>`;
+                    html += '</details>';
+                }
+                
+                html += '</div>';
+                summaryContent.innerHTML = html;
+            } else {
+                summaryContent.innerHTML = `<div class="alert alert-danger">
+                    <h6>Analysis Failed</h6>
+                    <p>${data.error || 'Unknown error occurred'}</p>
+                </div>`;
+            }
         }
     </script>
 

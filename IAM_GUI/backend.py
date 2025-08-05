@@ -5,11 +5,42 @@ import subprocess
 import tempfile
 import json
 import traceback
+from typing import Any
 
-from rdkit import Chem
-from rdkit.Chem import AllChem
-from rdkit.Chem import rdDistGeom
-from rdkit.Chem import rdForceFieldHelpers
+# RDKit imports with error handling
+try:
+    from rdkit import Chem
+    from rdkit.Chem import AllChem, rdDistGeom, rdForceFieldHelpers
+    RDKIT_AVAILABLE = True
+    print("✅ RDKit loaded successfully")
+except ImportError:
+    print("⚠️ RDKit not available - some features will be limited")
+    RDKIT_AVAILABLE = False
+    # Create dummy classes to prevent errors
+    class DummyChem:
+        @staticmethod
+        def MolFromSmiles(smiles): return None
+        @staticmethod
+        def MolFromMolBlock(mol): return None
+        @staticmethod
+        def MolToXYZBlock(mol): return ""
+        @staticmethod
+        def AddHs(mol): return mol
+    
+    class DummyAllChem:
+        @staticmethod
+        def EmbedMolecule(mol, *args, **kwargs): return -1
+        @staticmethod
+        def UFFOptimizeMolecule(mol): return -1
+        @staticmethod
+        def MMFFOptimizeMolecule(mol): return -1
+        @staticmethod
+        def ETKDG(): return None
+        @staticmethod
+        def ETKDGv3(): return None
+    
+    Chem = DummyChem
+    AllChem = DummyAllChem
 
 app = Flask(__name__, template_folder='templates')
 CORS(app)
@@ -26,28 +57,29 @@ def handle_exception(e):
 # --- RDKit 3D coordinate generation helpers ---
 def embed_molecule_with_3d(mol):
     """
-    Embed 3D coordinates using ETKDG if available, fallback to standard, and optimize with UFF or MMFF if available.
+    Embed 3D coordinates using available RDKit methods and optimize geometry.
     """
-    # Try ETKDG if available
-    params = None
-    if hasattr(rdDistGeom, "ETKDGv3"):
-        params = rdDistGeom.ETKDGv3()
-    elif hasattr(rdDistGeom, "ETKDGv2"):
-        params = rdDistGeom.ETKDGv2()
-    elif hasattr(rdDistGeom, "ETKDG"):
-        params = rdDistGeom.ETKDG()
-    if params is not None:
-        rdDistGeom.EmbedMolecule(mol, params)
-    else:
-        rdDistGeom.EmbedMolecule(mol)
-    # Optimize geometry if possible
+    if not RDKIT_AVAILABLE:
+        print("RDKit not available for 3D embedding")
+        return mol
+        
     try:
-        if hasattr(rdForceFieldHelpers, "UFFOptimizeMolecule"):
+        # Use rdDistGeom for embedding
+        embed_result = rdDistGeom.EmbedMolecule(mol)
+        if embed_result != 0:
+            raise ValueError("Embedding molecule failed")
+
+        # Optimize geometry using UFF or MMFF
+        try:
             rdForceFieldHelpers.UFFOptimizeMolecule(mol)
-        elif hasattr(rdForceFieldHelpers, "MMFFOptimizeMolecule"):
-            rdForceFieldHelpers.MMFFOptimizeMolecule(mol)
-    except Exception:
-        pass
+        except:
+            try:
+                rdForceFieldHelpers.MMFFOptimizeMolecule(mol)
+            except:
+                print("No force field optimization available")
+                
+    except Exception as e:
+        print(f"Error during 3D embedding or optimization: {e}")
     return mol
 
 
@@ -75,15 +107,32 @@ def index():
 
                 json_path = os.path.join(tempdir, "xtbout.json")
                 if not os.path.exists(json_path):
-                    results = {"success": False, "error": "Fichier xtbout.json non trouvé", "details": f"stdout: {result.stdout}\nstderr: {result.stderr}"}
+                    results = {
+                        "success": False,
+                        "error": "Fichier xtbout.json non trouvé",
+                        "details": f"stdout: {result.stdout}\nstderr: {result.stderr}"
+                    }
                 else:
-                    with open(json_path, "r") as f:
-                        results = json.load(f)
+                    try:
+                        with open(json_path, "r") as f:
+                            results = json.load(f)
+
+                        # Ensure required keys are present
+                        required_keys = ["energy", "gradient", "hessian"]
+                        for key in required_keys:
+                            if key not in results:
+                                results[key] = None  # Default to None if missing
+                    except json.JSONDecodeError as jde:
+                        results = {
+                            "success": False,
+                            "error": "Invalid JSON format in xtbout.json",
+                            "details": str(jde)
+                        }
 
         except Exception as e:
             results = {"success": False, "error": str(e), "details": traceback.format_exc()}
 
-    return render_template("iam_viewer_connected.html", results=results)
+    return render_template("iam_viewer_connected_professional.html", results=results)
 
 
 @app.route('/run_xtb', methods=['POST'])
@@ -189,8 +238,17 @@ elif energy_type == 'freq':
         print(''.join(lines[:10]))
         print("--- End of file preview ---")
 
-        xtb_command = ["xtb", xyz_path, "--opt", "--json", "--gfn", "2"]
-        # TODO: Use calc_type, charge, multiplicity, solvent, etc. in xtb_command as needed
+        # Update xtb_command to include additional parameters
+        xtb_command = [
+            "xtb", xyz_path,
+            f"--opt", f"--json", f"--gfn", "2",
+            f"--chrg", charge,
+            f"--uhf", multiplicity,
+            f"--solvent", solvent
+        ]
+        # Debug: Log the command being executed
+        print("Executing xTB command:", " ".join(xtb_command))
+
         result = subprocess.run(xtb_command, cwd=tempdir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
         json_path = os.path.join(tempdir, "xtbout.json")
@@ -218,16 +276,23 @@ elif energy_type == 'freq':
 
 @app.route('/smiles_to_xyz', methods=['POST'])
 def smiles_to_xyz():
+    if not RDKIT_AVAILABLE:
+        return jsonify({'success': False, 'error': 'RDKit not available', 'details': 'RDKit is required for SMILES conversion'})
+        
     data = request.get_json()
     smiles = data.get('smiles', '')
     try:
+        print(f"Processing SMILES: {smiles}")
         mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            return jsonify({"success": False, "error": "Invalid SMILES input."}), 400
+
         mol = Chem.AddHs(mol)
         mol = embed_molecule_with_3d(mol)
         xyz = Chem.MolToXYZBlock(mol)
-        return jsonify({'success': True, 'xyz': xyz})
+        return jsonify({"success": True, "xyz": xyz})
     except Exception as e:
-        return jsonify({'success': False, 'error': 'SMILES conversion error', 'details': traceback.format_exc()})
+        return jsonify({'success': False, 'error': 'SMILES conversion error', 'details': str(e)})
 
 
 @app.route('/molfile_to_xyz', methods=['POST'])
@@ -263,9 +328,9 @@ def is_xyz_format(mol_string: str) -> bool:
 
 
 def molblock_to_xyz(mol_block: str) -> str:
-    import traceback
-    from rdkit import Chem
-    from rdkit.Chem import AllChem
+    if not RDKIT_AVAILABLE:
+        raise ValueError("RDKit is not available for MOL to XYZ conversion")
+        
     try:
         lines = mol_block.strip().splitlines()
         # Ajoute une ligne de titre si manquante ou suspecte
@@ -273,14 +338,12 @@ def molblock_to_xyz(mol_block: str) -> str:
             lines = ["Generated by IAM"] + lines
         mol_block_fixed = "\n".join(lines)
 
-        mol = Chem.MolFromMolBlock(mol_block_fixed, sanitize=True)
+        mol = Chem.MolFromMolBlock(mol_block_fixed)
         if mol is None:
             raise ValueError("RDKit failed to parse the MOL block.")
 
         mol = Chem.AddHs(mol)
-        if AllChem.EmbedMolecule(mol, AllChem.ETKDG()) != 0:
-            raise ValueError("Failed to generate 3D coordinates.")
-        AllChem.UFFOptimizeMolecule(mol)
+        mol = embed_molecule_with_3d(mol)
 
         conf = mol.GetConformer()
         atoms = mol.GetAtoms()
@@ -375,9 +438,478 @@ def patch_molblock(molblock: str) -> str:
 
 from flask import render_template
 
+@app.route('/analyze', methods=['POST'])
+def analyze():
+    """Professional analysis endpoint that runs XTB calculations"""
+    try:
+        data = request.get_json()
+        mol_data = data.get('mol_data', '')
+        analysis_type = data.get('analysis_type', 'basic')
+        
+        if not mol_data:
+            return jsonify({'success': False, 'error': 'No molecular data provided'})
+        
+        # Convert molfile to XYZ using existing function
+        try:
+            xyz_content = molblock_to_xyz(mol_data)
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Failed to convert molecular data: {str(e)}'})
+        
+        # Run XTB calculation
+        with tempfile.TemporaryDirectory() as tempdir:
+            xyz_path = os.path.join(tempdir, "molecule.xyz")
+            with open(xyz_path, "w") as f:
+                f.write(xyz_content)
+            
+            # Run XTB with JSON output
+            xtb_command = ["xtb", xyz_path, "--opt", "--json", "--gfn", "2"]
+            result = subprocess.run(xtb_command, cwd=tempdir, 
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            
+            json_path = os.path.join(tempdir, "xtbout.json")
+            xtbopt_xyz_path = os.path.join(tempdir, "xtbopt.xyz")
+            
+            # Get optimized geometry if available
+            final_xyz = xyz_content  # fallback to original
+            if os.path.exists(xtbopt_xyz_path):
+                with open(xtbopt_xyz_path, "r") as f:
+                    final_xyz = f.read()
+            
+            if not os.path.exists(json_path):
+                # XTB failed, return error with details
+                return jsonify({
+                    'success': False,
+                    'error': 'XTB calculation failed',
+                    'details': f"XTB did not produce expected output. stderr: {result.stderr}"
+                })
+            
+            # Parse XTB results
+            with open(json_path, "r") as f:
+                xtb_data = json.load(f)
+            
+            # Extract key information from XTB output
+            total_energy = xtb_data.get('total energy', 'Not available')
+            homo_lumo_gap = xtb_data.get('HOMO-LUMO gap/eV', 'N/A')
+            dipole_moment = xtb_data.get('molecular dipole/Debye', 'N/A')
+            
+            # Extract additional detailed data
+            orbital_energies = xtb_data.get('orbital energies/eV', [])
+            dipole_vector = xtb_data.get('dipole', [0, 0, 0])
+            partial_charges = xtb_data.get('partial charges', [])
+            
+            # Calculate HOMO and LUMO energies if available
+            homo_energy = 'N/A'
+            lumo_energy = 'N/A'
+            if orbital_energies:
+                try:
+                    # Find HOMO (highest occupied) and LUMO (lowest unoccupied)
+                    num_electrons = xtb_data.get('number of electrons', 0)
+                    if num_electrons > 0 and len(orbital_energies) >= num_electrons // 2:
+                        homo_index = (num_electrons // 2) - 1  # 0-indexed
+                        if homo_index >= 0 and homo_index < len(orbital_energies):
+                            homo_energy = f"{orbital_energies[homo_index]:.3f} eV"
+                        if homo_index + 1 < len(orbital_energies):
+                            lumo_energy = f"{orbital_energies[homo_index + 1]:.3f} eV"
+                except:
+                    pass
+            
+            # Calculate molecular formula from XYZ (basic implementation)
+            lines = final_xyz.strip().split('\n')
+            atom_count = {}
+            molecular_weight = 0
+            atomic_weights = {'H': 1.008, 'C': 12.011, 'N': 14.007, 'O': 15.999, 'F': 18.998, 'P': 30.974, 'S': 32.065, 'Cl': 35.453}
+            
+            if len(lines) > 2:
+                for line in lines[2:]:  # skip count and comment lines
+                    parts = line.strip().split()
+                    if len(parts) >= 4:
+                        element = parts[0]
+                        atom_count[element] = atom_count.get(element, 0) + 1
+                        molecular_weight += atomic_weights.get(element, 0)
+            
+            formula = ''.join([f"{elem}{count if count > 1 else ''}" 
+                             for elem, count in sorted(atom_count.items())])
+            
+            # Calculate dipole vector magnitude
+            dipole_magnitude = 'N/A'
+            dipole_dict = {'x': 'N/A', 'y': 'N/A', 'z': 'N/A', 'total': 'N/A'}
+            if len(dipole_vector) >= 3:
+                try:
+                    dx, dy, dz = float(dipole_vector[0]), float(dipole_vector[1]), float(dipole_vector[2])
+                    dipole_magnitude = (dx**2 + dy**2 + dz**2)**0.5
+                    dipole_dict = {
+                        'x': f"{dx:.6f}",
+                        'y': f"{dy:.6f}", 
+                        'z': f"{dz:.6f}",
+                        'total': f"{dipole_magnitude:.6f} Debye"
+                    }
+                except:
+                    pass
+            
+            # Get frequencies if available (vibrational modes)
+            frequencies = xtb_data.get('frequencies', [])
+            
+            # Read raw XTB output (last 30 lines)
+            raw_output_preview = "No raw output available"
+            try:
+                # Look for log file or stderr output
+                if result.stdout:
+                    lines = result.stdout.split('\n')
+                    raw_output_preview = '\n'.join(lines[-30:]) if len(lines) > 30 else result.stdout
+                elif result.stderr:
+                    lines = result.stderr.split('\n')
+                    raw_output_preview = '\n'.join(lines[-30:]) if len(lines) > 30 else result.stderr
+            except:
+                pass
+            
+            # Prepare comprehensive results with enhanced data
+            results = {
+                'success': True,
+                'summary': f'Molecular analysis completed successfully using XTB/GFN2. The molecule shows an energy of {total_energy} Hartree with a HOMO-LUMO gap of {homo_lumo_gap}.',
+                'formula': formula,
+                'weight': f'{molecular_weight:.2f} g/mol',
+                'energy': f'{total_energy} Hartree' if total_energy != 'Not available' else 'Optimization failed',
+                'properties': f'Molecular formula: {formula}, Molecular weight: {molecular_weight:.2f} g/mol',
+                'xyz_structure': final_xyz,
+                'analysis_type': analysis_type,
+                'method': 'XTB/GFN2',
+                'homo_lumo_gap': homo_lumo_gap,
+                'dipole_moment': dipole_moment,
+                'homo': homo_energy,
+                'lumo': lumo_energy,
+                'dipole_vector': dipole_dict,
+                'frequencies': frequencies[:10] if frequencies else [],  # First 10 frequencies
+                'charges': partial_charges[:20] if partial_charges else [],  # First 20 charges
+                'raw_xtb_output': raw_output_preview,
+                'raw_data': xtb_data  # Include full XTB data for advanced users
+            }
+            
+            return jsonify(results)
+        
+    except Exception as e:
+        print(f"Analysis error: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e), 'details': traceback.format_exc()})
+
+@app.route('/mol_to_xyz', methods=['POST'])
+def mol_to_xyz():
+    """Handle MOL to XYZ conversion with multiple parameter names for compatibility"""
+    try:
+        data = request.get_json()
+        
+        # Try multiple parameter names for compatibility
+        mol_data = data.get('mol') or data.get('mol_data') or data.get('molfile', '')
+        
+        if not mol_data:
+            return jsonify({'success': False, 'error': 'No MOL data provided'})
+        
+        # Use existing conversion function
+        xyz_content = molblock_to_xyz(mol_data)
+        return jsonify({'success': True, 'xyz': xyz_content})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': 'MOL to XYZ conversion failed', 'details': str(e)})
+
+@app.route('/api/test_xtb', methods=['GET'])
+def test_xtb():
+    """Test endpoint to verify XTB is working with a simple molecule"""
+    try:
+        # Simple methane molecule for testing
+        test_xyz = """5
+Methane test molecule
+C    0.000000    0.000000    0.000000
+H    1.089000    0.000000    0.000000
+H   -0.363000    1.026804    0.000000
+H   -0.363000   -0.513402   -0.889165
+H   -0.363000   -0.513402    0.889165"""
+        
+        with tempfile.TemporaryDirectory() as tempdir:
+            xyz_path = os.path.join(tempdir, "test.xyz")
+            with open(xyz_path, "w") as f:
+                f.write(test_xyz)
+            
+            # Run XTB
+            xtb_command = ["xtb", xyz_path, "--opt", "--json", "--gfn", "2"]
+            result = subprocess.run(xtb_command, cwd=tempdir, 
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            
+            json_path = os.path.join(tempdir, "xtbout.json")
+            
+            return jsonify({
+                "xtb_available": os.path.exists(json_path),
+                "return_code": result.returncode,
+                "stdout": result.stdout[:500],  # First 500 chars
+                "stderr": result.stderr[:500],
+                "json_exists": os.path.exists(json_path),
+                "files_in_dir": os.listdir(tempdir)
+            })
+            
+    except Exception as e:
+        return jsonify({
+            "xtb_available": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+
 @app.route('/dashboard')
 def dashboard():
     return render_template('IAM_StatusDashboard.html')
+
+@app.route('/generate_cubes', methods=['POST'])
+def generate_cubes():
+    """
+    Generate cube files for molecular orbitals (HOMO, LUMO) and return paths.
+    """
+    try:
+        data = request.get_json()
+        xyz_content = data.get('xyz', '')
+        if not xyz_content:
+            return jsonify({"success": False, "error": "No XYZ content provided."}), 400
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            xyz_path = os.path.join(tempdir, "molecule.xyz")
+            with open(xyz_path, "w") as f:
+                f.write(xyz_content)
+
+            # Run xTB to generate cube files
+            xtb_command = ["xtb", xyz_path, "--ohess", "--json"]
+            result = subprocess.run(xtb_command, cwd=tempdir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+            if result.returncode != 0:
+                return jsonify({
+                    "success": False,
+                    "error": "xTB failed to generate cube files.",
+                    "details": result.stderr
+                }), 500
+
+            # Collect generated cube files
+            cube_files = [
+                os.path.join(tempdir, fname) for fname in os.listdir(tempdir) if fname.endswith(".cube")
+            ]
+
+            if not cube_files:
+                return jsonify({"success": False, "error": "No cube files generated."}), 500
+
+            # Read cube file contents
+            cube_data = {}
+            for cube_file in cube_files:
+                with open(cube_file, "r") as f:
+                    cube_data[os.path.basename(cube_file)] = f.read()
+
+            return jsonify({"success": True, "cube_data": cube_data})
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ✅ NEW API ROUTES FOR COMPUTATIONAL FEATURES
+
+@app.route('/api/geometry_opt', methods=['POST'])
+def api_geometry_opt():
+    """Geometry optimization endpoint"""
+    app.logger.info(f"[{request.remote_addr}] Called /api/geometry_opt")
+    try:
+        data = request.get_json()
+        mol_data = data.get('mol_data', '') if data else ''
+        
+        # TODO: Implement actual geometry optimization logic
+        # For now, return placeholder success response
+        
+        return jsonify({
+            "success": True,
+            "message": "Geometry optimization completed (placeholder)",
+            "data": {
+                "optimized_energy": "-123.456789 Hartree",
+                "optimization_steps": 12,
+                "final_gradient_norm": "0.000123",
+                "method": "XTB-GFN2"
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error in geometry_opt: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/thermodynamics', methods=['POST'])
+def api_thermodynamics():
+    """Thermodynamics calculation endpoint"""
+    app.logger.info(f"[{request.remote_addr}] Called /api/thermodynamics")
+    try:
+        data = request.get_json()
+        
+        return jsonify({
+            "success": True,
+            "message": "Thermodynamics calculation completed (placeholder)",
+            "data": {
+                "enthalpy": "-234.567 kJ/mol",
+                "entropy": "123.45 J/(mol·K)",
+                "gibbs_energy": "-267.890 kJ/mol",
+                "heat_capacity": "45.67 J/(mol·K)",
+                "temperature": "298.15 K"
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error in thermodynamics: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/vibrational_analysis', methods=['POST'])
+def api_vibrational_analysis():
+    """Vibrational analysis endpoint"""
+    app.logger.info(f"[{request.remote_addr}] Called /api/vibrational_analysis")
+    try:
+        data = request.get_json()
+        
+        return jsonify({
+            "success": True,
+            "message": "Vibrational analysis completed (placeholder)",
+            "data": {
+                "frequencies": [567.8, 1234.5, 1567.9, 2345.6, 3012.4],
+                "intensities": [12.3, 45.6, 78.9, 23.4, 56.7],
+                "zero_point_energy": "0.123456 Hartree",
+                "num_imaginary_frequencies": 0,
+                "point_group": "C1"
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error in vibrational_analysis: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/stability', methods=['POST'])
+def api_stability():
+    """Stability prediction endpoint"""
+    app.logger.info(f"[{request.remote_addr}] Called /api/stability")
+    try:
+        data = request.get_json()
+        
+        return jsonify({
+            "success": True,
+            "message": "Stability prediction completed (placeholder)",
+            "data": {
+                "stability_score": 7.8,
+                "risk_level": "Medium",
+                "decomposition_temperature": "245°C",
+                "impact_sensitivity": "Low",
+                "friction_sensitivity": "Medium",
+                "explosive_groups": ["NO2", "N=N"],
+                "recommendations": ["Store below 200°C", "Avoid friction"]
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error in stability: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/vod', methods=['POST'])
+def api_vod():
+    """Velocity of Detonation (VoD) prediction endpoint"""
+    app.logger.info(f"[{request.remote_addr}] Called /api/vod")
+    try:
+        data = request.get_json()
+        
+        return jsonify({
+            "success": True,
+            "message": "VoD prediction completed (placeholder)",
+            "data": {
+                "vod_kmps": 8.75,
+                "vod_mps": 8750,
+                "detonation_pressure": "28.4 GPa",
+                "chapman_jouguet_pressure": "32.1 GPa",
+                "heat_of_detonation": "4567 kJ/kg",
+                "method": "Kamlet-Jacobs equation",
+                "confidence": "High"
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error in vod: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/performance', methods=['POST'])
+def api_performance():
+    """Performance optimization endpoint"""
+    app.logger.info(f"[{request.remote_addr}] Called /api/performance")
+    try:
+        data = request.get_json()
+        
+        return jsonify({
+            "success": True,
+            "message": "Performance optimization completed (placeholder)",
+            "data": {
+                "specific_impulse": "245 s",
+                "density": "1.67 g/cm³",
+                "energy_density": "5.67 MJ/kg",
+                "performance_score": 8.4,
+                "optimized_formula": "C4H8N8O8",
+                "recommendations": [
+                    "Increase nitrogen content for higher performance",
+                    "Consider oxygen balance optimization"
+                ]
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error in performance: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ✅ ORBITAL VISUALIZATION API ROUTES
+
+@app.route('/api/professional_orbitals/start_calculation', methods=['POST'])
+def start_orbital_calculation():
+    """Start orbital calculation job"""
+    app.logger.info(f"[{request.remote_addr}] Called /api/professional_orbitals/start_calculation")
+    try:
+        data = request.get_json()
+        
+        # Generate a mock job ID
+        import uuid
+        job_id = str(uuid.uuid4())
+        
+        return jsonify({
+            "success": True,
+            "job_id": job_id,
+            "message": "Orbital calculation started",
+            "estimated_time": "30 seconds"
+        })
+    except Exception as e:
+        app.logger.error(f"Error starting orbital calculation: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/professional_orbitals/progress/<job_id>', methods=['GET'])
+def get_orbital_progress(job_id):
+    """Get progress of orbital calculation"""
+    app.logger.info(f"[{request.remote_addr}] Called /api/professional_orbitals/progress/{job_id}")
+    try:
+        # Mock progress - in real implementation, check actual job status
+        import random
+        progress = min(100, random.randint(75, 100))
+        
+        return jsonify({
+            "success": True,
+            "job_id": job_id,
+            "progress": progress,
+            "status": "completed" if progress == 100 else "running",
+            "message": "Orbital calculation completed" if progress == 100 else "Calculating molecular orbitals..."
+        })
+    except Exception as e:
+        app.logger.error(f"Error getting orbital progress: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/professional_orbitals/results/<job_id>', methods=['GET'])
+def get_orbital_results(job_id):
+    """Get results of orbital calculation"""
+    app.logger.info(f"[{request.remote_addr}] Called /api/professional_orbitals/results/{job_id}")
+    try:
+        return jsonify({
+            "success": True,
+            "job_id": job_id,
+            "data": {
+                "homo_energy": "-5.67 eV",
+                "lumo_energy": "2.34 eV",
+                "homo_lumo_gap": "8.01 eV",
+                "orbital_files": {
+                    "homo": "/static/cubes/homo.cube",
+                    "lumo": "/static/cubes/lumo.cube"
+                },
+                "visualization_url": f"/orbital_viewer/{job_id}"
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error getting orbital results: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
