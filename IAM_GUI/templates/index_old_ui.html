@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IAM - Intelligent Agent for Molecules</title>
+    <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .header h1 {
+            margin: 0;
+            color: #667eea;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header p {
+            margin: 10px 0;
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .input-panel, .viewer-panel {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .panel-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #667eea;
+            text-align: center;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .input-group input[type="file"],
+        .input-group textarea,
+        .input-group select,
+        .input-group input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus,
+        .input-group textarea:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .input-group textarea {
+            height: 120px;
+            resize: vertical;
+            font-family: monospace;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        #viewer {
+            width: 100%;
+            height: 400px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            background: white;
+            margin-bottom: 15px;
+        }
+        
+        .tabs {
+            margin-top: 30px;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+        
+        .tab-button {
+            padding: 12px 25px;
+            background: #f8f9fa;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            flex: 1;
+        }
+        
+        .tab-button.active {
+            background: white;
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .tab-button:hover {
+            background: #e9ecef;
+        }
+        
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            min-height: 200px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .result-table th,
+        .result-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .result-table th {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 1.1em;
+        }
+        
+        .loading::after {
+            content: '';
+            animation: dots 1.5s infinite;
+        }
+        
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80%, 100% { content: '...'; }
+        }
+        
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #f5c6cb;
+            margin: 15px 0;
+        }
+        
+        .success {
+            color: #155724;
+            background: #d4edda;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #c3e6cb;
+            margin: 15px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 15px;
+            }
+            
+            .tab-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 IAM</h1>
+            <p>Intelligent Agent for Molecules</p>
+            <p>Computational Chemistry • XTB • DFT • Performance Prediction</p>
+        </div>
+        
+        <div class="main-layout">
+            <!-- Input Panel -->
+            <div class="input-panel">
+                <div class="panel-title">📂 Molecule Input</div>
+                
+                <div class="input-group">
+                    <label for="xyzFile">Upload File (.xyz, .mol, .sdf)</label>
+                    <input type="file" id="xyzFile" accept=".xyz,.mol,.sdf,.smiles,.smi">
+                </div>
+                
+                <div class="input-group">
+                    <label for="xyzPaste">Or Paste Content</label>
+                    <textarea id="xyzPaste" placeholder="Paste XYZ coordinates or MOL file content here..."></textarea>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-secondary" id="loadFromPasteBtn">🔄 Load Preview</button>
+                    <button class="btn btn-secondary" id="clearBtn">🗑️ Clear</button>
+                </div>
+                
+                <div class="input-group">
+                    <label for="method">Calculation Method</label>
+                    <select id="method">
+                        <option value="xtb">XTB (Semi-empirical)</option>
+                        <option value="dft">DFT B3LYP (Coming soon)</option>
+                    </select>
+                </div>
+                
+                <div class="input-group">
+                    <label for="charge">Charge</label>
+                    <input type="number" id="charge" value="0" min="-5" max="5">
+                </div>
+                
+                <div class="input-group">
+                    <label for="multiplicity">Multiplicity</label>
+                    <input type="number" id="multiplicity" value="1" min="1" max="5">
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-primary" id="launchIAMBtn">🚀 Run Calculation</button>
+                </div>
+            </div>
+            
+            <!-- 3D Viewer Panel -->
+            <div class="viewer-panel">
+                <div class="panel-title">🌐 3D Molecular Viewer</div>
+                <div id="viewer"></div>
+                <div class="button-group">
+                    <button class="btn btn-secondary" id="resetViewerBtn">🔄 Reset View</button>
+                    <button class="btn btn-secondary" id="exportPDBBtn">💾 Export PDB</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Results Tabs -->
+        <div class="tabs">
+            <div class="tab-buttons">
+                <button class="tab-button active" id="tabSummaryBtn" onclick="showTab('summary')">📊 Summary</button>
+                <button class="tab-button" id="tabOutputBtn" onclick="showTab('output')">📄 Output</button>
+                <button class="tab-button" id="tabLogBtn" onclick="showTab('log')">📝 Log</button>
+                <button class="tab-button" id="tabPerformanceBtn" onclick="showTab('performance')">🔥 Performance</button>
+                <button class="tab-button" id="tabToolsBtn" onclick="showTab('tools')">🧰 Tools</button>
+            </div>
+            
+            <div class="tab-content active" id="summary">
+                <h3>📊 Calculation Summary</h3>
+                <div id="summaryContent">
+                    <p>Load a molecule and run a calculation to see results here.</p>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="output">
+                <h3>📄 Raw Output</h3>
+                <div id="outputContent">
+                    <pre id="outputText">Output will appear here after calculation...</pre>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="log">
+                <h3>📝 Calculation Log</h3>
+                <div id="logContent">
+                    <pre id="logText">Log will appear here after calculation...</pre>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="performance">
+                <h3>🔥 Performance Prediction</h3>
+                <div id="performanceContent">
+                    <p>Performance analysis (VoD, Pcj, sensitivities) will appear here...</p>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="tools">
+                <h3>🧰 Export & Tools</h3>
+                <div id="toolsContent">
+                    <div class="button-group">
+                        <button class="btn btn-success" id="exportPDFBtn">📑 Export PDF Report</button>
+                        <button class="btn btn-success" id="exportCSVBtn">📊 Export CSV Data</button>
+                        <button class="btn btn-secondary" id="saveProjectBtn">💾 Save Project</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/script_old.js"></script>
+</body>
+</html>

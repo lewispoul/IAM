@@ -1,0 +1,51 @@
+{
+  "user": "Louis-Philippe Poulin (LPP)",
+  "project": "IAM \u2013 Intelligent Agent for Molecules",
+  "agent_name": "Nox",
+  "platforms": [
+    "Raspberry Pi",
+    "WSL",
+    "VSCode",
+    "Jupyter",
+    "Flask"
+  ],
+  "core_modules": [
+    "IAM_MoleculeEngine.py",
+    "backend.py",
+    "IAM_Agent.py",
+    "IAM_PerformancePredictor",
+    "start_all.sh",
+    "iam_viewer_connected.html",
+    "IAM_Knowledge",
+    "IAM_Results"
+  ],
+  "goals": [
+    "Calculs XTB et Psi4 avec interface web",
+    "Pr\u00e9diction de performance (VoD, Pcj, \u0394Hdet) par formules + ML",
+    "Agent autonome qui surveille les fichiers et ex\u00e9cute les calculs",
+    "Apprentissage automatique \u00e0 partir des r\u00e9sultats enregistr\u00e9s",
+    "Comparaison avec litt\u00e9rature (Klap\u00f6tke, Keshavarz, LLNL)",
+    "Interface moderne et responsive avec sketcher et visualiseur 3D",
+    "Lien entre toutes les conversations pour continuit\u00e9 de projet"
+  ],
+  "datasets": [
+    "IAM_Master_Energetics.csv (extraits Klap\u00f6tke, Keshavarz, etc.)"
+  ],
+  "state": {
+    "status": "reconstruction compl\u00e8te en cours",
+    "modules_regenerated": [
+      "IAM_MoleculeEngine",
+      "backend",
+      "IAM_Agent",
+      "start_all",
+      "UI frontend"
+    ],
+    "next_steps": [
+      "Compl\u00e9ter IAM_PerformancePredictor",
+      "Nettoyer IAM_Master_Energetics.csv",
+      "V\u00e9rifier backend + endpoints UI",
+      "R\u00e9activer tous les scripts d'automatisation (agent, zip, benchmark)"
+    ]
+  },
+  "timestamp": "2025-07-23T03:04:14.422235"
+}

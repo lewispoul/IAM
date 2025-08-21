@@ -11,6 +11,11 @@ from rdkit.Chem import AllChem
 from rdkit.Chem import rdDistGeom
 from rdkit.Chem import rdForceFieldHelpers
 
+# Import du module IAM existant
+import sys
+sys.path.append('/home/lppou/IAM')
+from IAM_Molecule_Engine.iam_molecule_engine import generate_xyz_from_smiles, full_molecule_workflow
+
 app = Flask(__name__, template_folder='templates')
 CORS(app)
 
@@ -28,26 +33,42 @@ def embed_molecule_with_3d(mol):
     """
     Embed 3D coordinates using ETKDG if available, fallback to standard, and optimize with UFF or MMFF if available.
     """
-    # Try ETKDG if available
-    params = None
-    if hasattr(rdDistGeom, "ETKDGv3"):
-        params = rdDistGeom.ETKDGv3()
-    elif hasattr(rdDistGeom, "ETKDGv2"):
-        params = rdDistGeom.ETKDGv2()
-    elif hasattr(rdDistGeom, "ETKDG"):
-        params = rdDistGeom.ETKDG()
-    if params is not None:
-        rdDistGeom.EmbedMolecule(mol, params)
-    else:
-        rdDistGeom.EmbedMolecule(mol)
-    # Optimize geometry if possible
     try:
-        if hasattr(rdForceFieldHelpers, "UFFOptimizeMolecule"):
-            rdForceFieldHelpers.UFFOptimizeMolecule(mol)
-        elif hasattr(rdForceFieldHelpers, "MMFFOptimizeMolecule"):
-            rdForceFieldHelpers.MMFFOptimizeMolecule(mol)
-    except Exception:
-        pass
+        from rdkit.Chem import rdDepictor, rdDistGeom, rdForceFieldHelpers
+        
+        # Generate 2D coordinates first if needed
+        rdDepictor.Compute2DCoords(mol)
+        
+        # Try ETKDG if available
+        params = None
+        if hasattr(rdDistGeom, "ETKDGv3"):
+            params = rdDistGeom.ETKDGv3()
+        elif hasattr(rdDistGeom, "ETKDGv2"):
+            params = rdDistGeom.ETKDGv2()
+        elif hasattr(rdDistGeom, "ETKDG"):
+            params = rdDistGeom.ETKDG()
+            
+        if params is not None:
+            result = rdDistGeom.EmbedMolecule(mol, params)
+        else:
+            result = rdDistGeom.EmbedMolecule(mol)
+            
+        if result != 0:
+            print(f"⚠️ Embedding failed with code {result}, retrying with basic method")
+            rdDistGeom.EmbedMolecule(mol)
+            
+        # Optimize geometry if possible
+        try:
+            if hasattr(rdForceFieldHelpers, "UFFOptimizeMolecule"):
+                rdForceFieldHelpers.UFFOptimizeMolecule(mol)
+            elif hasattr(rdForceFieldHelpers, "MMFFOptimizeMolecule"):
+                rdForceFieldHelpers.MMFFOptimizeMolecule(mol)
+        except Exception as e:
+            print(f"⚠️ Force field optimization failed: {e}")
+            
+    except Exception as e:
+        print(f"⚠️ 3D embedding failed: {e}")
+        
     return mol
 
 
@@ -83,7 +104,7 @@ def index():
         except Exception as e:
             results = {"success": False, "error": str(e), "details": traceback.format_exc()}
 
-    return render_template("iam_viewer_connected.html", results=results)
+    return render_template("index_old_ui.html", results=results)
 
 
 @app.route('/run_xtb', methods=['POST'])
@@ -161,22 +182,26 @@ elif energy_type == 'freq':
         except Exception as e:
             return jsonify({"success": False, "error": "Psi4 error", "details": traceback.format_exc()}), 500
 
-    # Accept both XYZ and MOL input from frontend
+    # Accept both XYZ and MOL input from frontend with robust parsing
     mol_string = xyz_file.read().decode("utf-8")
-    # Heuristics: check for XYZ, else try MOL
+    
+    # Check format and convert to XYZ
     if is_xyz_format(mol_string):
         xyz_string = mol_string
+        print("📄 Format détecté: XYZ")
     else:
-        # Accept MOL if starts with 'Ketcher', 'INDIGO', or contains 'V2000'/'V3000'
-        if (mol_string.strip().startswith("Ketcher") or
-            mol_string.strip().startswith("INDIGO") or
-            "V2000" in mol_string or "V3000" in mol_string):
-            try:
-                xyz_string = molblock_to_xyz(mol_string)
-            except Exception as e:
-                return jsonify({"success": False, "error": f"MOL to XYZ conversion failed: {e}", "details": traceback.format_exc()}), 400
-        else:
-            return jsonify({"success": False, "error": "Unknown molecule format. Please provide XYZ or MOLfile (V2000/V3000)."}), 400
+        # Try MOL format conversion with our robust function
+        print("📄 Format détecté: MOL, conversion en cours...")
+        try:
+            xyz_string = robust_mol_to_xyz(mol_string, "xtb_endpoint")
+            print("✅ Conversion MOL → XYZ réussie")
+        except Exception as e:
+            return jsonify({
+                "success": False, 
+                "error": f"Échec conversion MOL → XYZ: {str(e)}", 
+                "details": traceback.format_exc(),
+                "mol_preview": mol_string[:300] + "..." if len(mol_string) > 300 else mol_string
+            }), 400
 
     with tempfile.TemporaryDirectory() as tempdir:
         xyz_path = os.path.join(tempdir, "molecule.xyz")
@@ -218,30 +243,155 @@ elif energy_type == 'freq':
 
 @app.route('/smiles_to_xyz', methods=['POST'])
 def smiles_to_xyz():
-    data = request.get_json()
-    smiles = data.get('smiles', '')
+    """Convert SMILES to XYZ using IAM_Molecule_Engine"""
     try:
-        mol = Chem.MolFromSmiles(smiles)
-        mol = Chem.AddHs(mol)
-        mol = embed_molecule_with_3d(mol)
-        xyz = Chem.MolToXYZBlock(mol)
-        return jsonify({'success': True, 'xyz': xyz})
+        data = request.get_json()
+        smiles = data.get('smiles', '').strip()
+        
+        if not smiles:
+            return jsonify({
+                'success': False,
+                'error': 'SMILES vide'
+            })
+        
+        import tempfile
+        import os
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            xyz_path = os.path.join(tmpdir, 'molecule.xyz')
+            
+            try:
+                generate_xyz_from_smiles(smiles, xyz_path)
+                
+                with open(xyz_path, 'r') as f:
+                    xyz_content = f.read()
+                
+                return jsonify({
+                    'success': True,
+                    'xyz': xyz_content,
+                    'message': f'Conversion SMILES→XYZ réussie pour {smiles}'
+                })
+                
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'error': f'Erreur conversion SMILES→XYZ: {str(e)}'
+                })
+                
     except Exception as e:
-        return jsonify({'success': False, 'error': 'SMILES conversion error', 'details': traceback.format_exc()})
+        return jsonify({
+            'success': False,
+            'error': f'Erreur endpoint SMILES: {str(e)}',
+            'details': traceback.format_exc()
+        })
 
 
 @app.route('/molfile_to_xyz', methods=['POST'])
 def molfile_to_xyz():
-    data = request.get_json()
-    molfile = data.get('molfile', '')
+    """Enhanced MOL to XYZ conversion with robust error handling"""
     try:
-        mol = Chem.MolFromMolBlock(molfile)
-        mol = Chem.AddHs(mol)
-        mol = embed_molecule_with_3d(mol)
-        xyz = Chem.MolToXYZBlock(mol)
-        return jsonify({'success': True, 'xyz': xyz})
+        data = request.get_json()
+        
+        # Support multiple parameter names: 'molfile', 'mol', 'mol_content'
+        molfile = data.get('molfile') or data.get('mol') or data.get('mol_content', '')
+        
+        if not molfile.strip():
+            return jsonify({
+                'success': False,
+                'error': 'Fichier MOL vide'
+            }), 400
+        
+        # Use our enhanced conversion function
+        xyz = robust_mol_to_xyz(molfile, "molfile_endpoint")
+        
+        return jsonify({
+            'success': True, 
+            'xyz': xyz,
+            'message': 'Conversion MOL → XYZ réussie'
+        })
+        
     except Exception as e:
-        return jsonify({'success': False, 'error': 'Molfile conversion error', 'details': traceback.format_exc()})
+        return jsonify({
+            'success': False, 
+            'error': f'Erreur conversion MOL→XYZ: {str(e)}',
+            'details': traceback.format_exc()
+        }), 500
+
+
+def robust_mol_to_xyz(mol_content: str, source: str = "unknown") -> str:
+    """
+    Robust MOL to XYZ conversion with multiple fallback strategies
+    """
+    if not mol_content.strip():
+        raise ValueError("Contenu MOL vide")
+    
+    mol = None
+    
+    # Strategy 1: Try avec fix_indigo_mol d'abord (pour les formats INDIGO)
+    if 'INDIGO' in mol_content.upper() or '-INDIGO-' in mol_content:
+        try:
+            fixed_mol = fix_indigo_mol(mol_content)
+            print(f"🔧 MOL INDIGO corrigé pour {source}")
+            mol = Chem.MolFromMolBlock(fixed_mol, sanitize=False)
+            if mol:
+                print(f"✅ Succès avec fix_indigo_mol pour {source}")
+        except Exception as e1:
+            print(f"⚠️ Tentative INDIGO échouée: {e1}")
+    
+    # Strategy 2: Try with patch_molblock (notre fonction complexe)
+    if mol is None:
+        try:
+            patched_mol = patch_molblock(mol_content)
+            print(f"🔧 MOL patché avec patch_molblock pour {source}")
+            mol = Chem.MolFromMolBlock(patched_mol, sanitize=False)
+            if mol:
+                print(f"✅ Succès avec patch_molblock pour {source}")
+        except Exception as e2:
+            print(f"⚠️ Tentative patch_molblock échouée: {e2}")
+    
+    # Strategy 3: Try direct parsing without sanitization
+    if mol is None:
+        try:
+            mol = Chem.MolFromMolBlock(mol_content, sanitize=False)
+            if mol:
+                print(f"✅ Succès parsing direct pour {source}")
+        except Exception as e3:
+            print(f"⚠️ Tentative direct échouée: {e3}")
+    
+    # Strategy 4: Try with sanitization
+    if mol is None:
+        try:
+            mol = Chem.MolFromMolBlock(mol_content, sanitize=True)
+            if mol:
+                print(f"✅ Succès avec sanitization pour {source}")
+        except Exception as e4:
+            print(f"⚠️ Tentative sanitize échouée: {e4}")
+    
+    if mol is None:
+        raise ValueError(f"Impossible de parser le MOL depuis {source}. Contenu: {mol_content[:200]}...")
+    
+    # Add hydrogens and generate 3D coordinates
+    try:
+        # Update property cache
+        for atom in mol.GetAtoms():
+            atom.UpdatePropertyCache(strict=False)
+        
+        # Add hydrogens carefully
+        try:
+            mol = Chem.AddHs(mol, addCoords=False)
+        except Exception as e:
+            print(f"⚠️ AddHs failed: {e}, continuing without explicit hydrogens")
+        
+        # Generate 3D coordinates
+        mol = embed_molecule_with_3d(mol)
+        
+        # Convert to XYZ
+        xyz = Chem.MolToXYZBlock(mol)
+        
+        return xyz
+        
+    except Exception as e:
+        raise ValueError(f"Erreur génération 3D pour {source}: {str(e)}")
 
 def is_xyz_format(mol_string: str) -> bool:
     """
@@ -303,74 +453,78 @@ def molblock_to_xyz(mol_block: str) -> str:
 
 def patch_molblock(molblock: str) -> str:
     """
-    Make a MOL block maximally compatible with RDKit:
-    - Strip all leading and trailing blank lines.
-    - If the first line starts with '-INDIGO-', 'CDK', 'ChemDraw', or is blank, replace it with 'Untitled'.
-    - If the second line starts with '-INDIGO-', 'CDK', 'ChemDraw', or is blank, replace it with a single space.
-    - Ensure no blank lines before the counts line (the line with 'V2000' or 'V3000').
-    - Fix the counts line: first 9 fields must be integer strings.
-    - Remove extra blank lines except after the counts line (exactly one blank line after counts line).
-    - Remove any extra lines after 'M  END'.
-    - Return the fixed MOL block with a trailing newline.
+    Fix INDIGO MOL blocks for RDKit compatibility
     """
-    import re
-    lines = molblock.splitlines()
-    # 1. Strip all leading and trailing blank lines
-    while lines and not lines[0].strip():
-        lines.pop(0)
-    while lines and not lines[-1].strip():
-        lines.pop()
-    # 2. Fix first line
-    known_headers = ('-INDIGO-', 'CDK', 'ChemDraw')
-    if not lines or not lines[0].strip() or any(lines[0].startswith(h) for h in known_headers):
-        if lines:
-            lines[0] = 'Untitled'
-        else:
-            lines = ['Untitled']
-    # 3. Fix second line
+    lines = molblock.strip().splitlines()
+    
+    if not lines:
+        return molblock
+    
+    # Fix INDIGO header
+    if lines[0].startswith('-INDIGO-'):
+        lines[0] = 'Molecule'
+    
+    # Ensure second line exists
     if len(lines) < 2:
-        lines.append(' ')
-    elif not lines[1].strip() or any(lines[1].startswith(h) for h in known_headers):
-        lines[1] = ' '
-    # 4. Find counts line and ensure no blank lines before it
-    counts_idx = None
+        lines.insert(1, '')
+    
+    # Find and fix counts line  
     for i, line in enumerate(lines):
-        if 'V2000' in line or 'V3000' in line:
-            counts_idx = i
+        if 'V2000' in line:
+            # Extract numbers before V2000 and handle floats like "5."
+            import re
+            numbers = re.findall(r'\\d+\\.?\\d*', line.replace('V2000', '').strip())
+            if len(numbers) >= 2:
+                try:
+                    atoms = int(float(numbers[0]))  # Convert "5." to 5
+                    bonds = int(float(numbers[1]))  # Convert "5." to 5
+                    # Create standard counts line with proper spacing
+                    fixed_counts = f"{atoms:3d}{bonds:3d}  0  0  0  0  0  0  0  0999 V2000"
+                    lines[i] = fixed_counts
+                    print(f"🔧 Counts line: '{line}' → '{fixed_counts}'")
+                except (ValueError, IndexError):
+                    print(f"⚠️ Failed to parse counts line: '{line}'")
             break
-    if counts_idx is None:
-        # Not a valid MOL block, return as is
-        return '\n'.join(lines) + '\n'
-    # Remove blank lines before counts line
-    before_counts = [l for l in lines[:counts_idx] if l.strip()]
-    # 5. Fix counts line fields
-    fields = lines[counts_idx].split()
-    for j in range(min(9, len(fields))):
-        try:
-            fields[j] = str(int(float(fields[j])))
-        except Exception:
-            pass
-    fixed_counts = ' '.join(fields)
-    # 6. Remove extra blank lines except after counts line (exactly one blank line after counts line)
-    after_counts = lines[counts_idx+1:]
-    # Remove all blank lines
-    after_counts = [l for l in after_counts if l.strip()]
-    # Insert exactly one blank line after counts line
-    after_counts = [''] + after_counts if after_counts else ['']
-    # 7. Remove any extra lines after 'M  END'
-    if 'M  END' in after_counts:
-        m_end_idx = after_counts.index('M  END')
-        after_counts = after_counts[:m_end_idx+1]
-    # 8. Rebuild
-    fixed_lines = before_counts + [fixed_counts] + after_counts
-    result = '\n'.join(fixed_lines)
-    if not result.endswith('\n'):
-        result += '\n'
-    return result
+    
+    return '\\n'.join(lines) + '\\n'
 
 # Example usage:
 # molblock = patch_molblock(molblock)
 # mol = Chem.MolFromMolBlock(molblock)
+
+
+def fix_indigo_mol(molblock: str) -> str:
+    """
+    Version SIMPLE pour corriger spécifiquement les fichiers MOL INDIGO
+    """
+    lines = molblock.strip().split('\n')
+    
+    if len(lines) < 4:
+        return molblock
+    
+    # Corriger le header (3 premières lignes)
+    lines[0] = 'Molecule'
+    lines[1] = '  IAM'
+    lines[2] = ''
+    
+    # Corriger la ligne de comptage (ligne 3, index 3)
+    counts_line = lines[3].strip()
+    
+    # Extraire le nombre d'atomes et de liaisons
+    parts = counts_line.split()
+    
+    if len(parts) >= 2:
+        try:
+            num_atoms = int(parts[0])
+            num_bonds = int(parts[1])
+            
+            # Reformater avec le bon espacement
+            lines[3] = f"{num_atoms:3d}{num_bonds:3d}  0  0  0  0            999 V2000"
+            
+        except ValueError:
+            pass
+    
+    return '\n'.join(lines)
 
 
 from flask import render_template
@@ -378,6 +532,144 @@ from flask import render_template
 @app.route('/dashboard')
 def dashboard():
     return render_template('IAM_StatusDashboard.html')
+
+
+@app.route('/predict_performance', methods=['POST'])
+def predict_performance():
+    """Endpoint pour prédiction de performance avec IAM_PerformancePredictor"""
+    try:
+        data = request.get_json()
+        molecular_formula = data.get('molecular_formula', 'C1H1N1O1')
+        density = data.get('density', 1.5)
+        heat_formation = data.get('heat_formation', 0)
+        
+        # Import et utilisation du module existant
+        sys.path.append('/home/lppou/IAM')
+        from IAM_PerformancePredictor import IAM_PerformancePredictor
+        
+        predictor = IAM_PerformancePredictor()
+        results = predictor.full_prediction(
+            molecular_formula=molecular_formula,
+            density=density,
+            heat_formation=heat_formation
+        )
+        
+        return jsonify({
+            'success': True,
+            'data': results,
+            'message': 'Performance prediction completed'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Performance prediction error: {str(e)}',
+            'details': traceback.format_exc()
+        })
+
+
+@app.route('/run_iam_workflow', methods=['POST'])
+def run_iam_workflow():
+    """Execute full IAM workflow: SMILES → XYZ → XTB → Results"""
+    try:
+        data = request.get_json()
+        smiles = data.get('smiles', '').strip()
+        name = data.get('name', 'molecule').strip()
+        
+        if not smiles:
+            return jsonify({
+                'success': False,
+                'error': 'SMILES vide'
+            })
+        
+        import tempfile
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            try:
+                results = full_molecule_workflow(smiles, name, tmpdir)
+                
+                # Lire le fichier XYZ généré
+                xyz_path = results.get('XYZ path')
+                xyz_content = ''
+                if xyz_path and os.path.exists(xyz_path):
+                    with open(xyz_path, 'r') as f:
+                        xyz_content = f.read()
+                
+                return jsonify({
+                    'success': True,
+                    'iam_results': results,
+                    'xyz_content': xyz_content,
+                    'message': f'Workflow IAM complet réussi pour {smiles}'
+                })
+                
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'error': f'Erreur workflow IAM: {str(e)}',
+                    'details': traceback.format_exc()
+                })
+                
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Erreur endpoint IAM: {str(e)}',
+            'details': traceback.format_exc()
+        })
+
+
+@app.route('/debug_mol_parsing', methods=['POST'])
+def debug_mol_parsing():
+    """Debug endpoint for MOL parsing issues"""
+    try:
+        data = request.get_json()
+        mol_content = data.get('mol_content', '')
+        
+        if not mol_content.strip():
+            return jsonify({
+                'success': False,
+                'error': 'Contenu MOL vide'
+            })
+        
+        debug_info = {
+            'original_length': len(mol_content),
+            'lines_count': len(mol_content.splitlines()),
+            'first_line': mol_content.splitlines()[0] if mol_content.splitlines() else '',
+            'contains_v2000': 'V2000' in mol_content,
+            'contains_indigo': 'INDIGO' in mol_content.upper(),
+            'contains_m_end': 'M  END' in mol_content
+        }
+        
+        # Try our patch function
+        try:
+            patched = patch_molblock(mol_content)
+            debug_info['patch_success'] = True
+            debug_info['patched_preview'] = patched[:200]
+            
+            # Try RDKit parsing
+            mol = Chem.MolFromMolBlock(patched, sanitize=False)
+            if mol:
+                debug_info['rdkit_success'] = True
+                debug_info['atom_count'] = mol.GetNumAtoms()
+            else:
+                debug_info['rdkit_success'] = False
+                debug_info['rdkit_error'] = 'RDKit returned None'
+                
+        except Exception as e:
+            debug_info['patch_success'] = False
+            debug_info['patch_error'] = str(e)
+        
+        return jsonify({
+            'success': True,
+            'debug_info': debug_info
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Debug error: {str(e)}',
+            'details': traceback.format_exc()
+        })
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
