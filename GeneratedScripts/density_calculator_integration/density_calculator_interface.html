@@ -1,0 +1,34 @@
+<!-- Interface HTML pour le layout -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculateur de Densité d'Explosifs</title>
+    <script>
+        async function calculateDensity() {
+            const formula = document.getElementById('formula').value;
+            const response = await fetch('/api/calculate_density', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ formula: formula })
+            });
+            const result = await response.json();
+            if (result.success) {
+                document.getElementById('result').textContent = `Densité: ${result.density.toFixed(2)} g/cm³, Masse Molaire: ${result.molar_mass.toFixed(2)} g/mol`;
+            } else {
+                document.getElementById('result').textContent = `Erreur: ${result.error}`;
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Calculateur de Densité d'Explosifs</h1>
+    <label for="formula">Formule Chimique:</label>
+    <input type="text" id="formula" name="formula" required>
+    <button onclick="calculateDensity()">Calculer</button>
+    <p id="result"></p>
+</body>
+</html>

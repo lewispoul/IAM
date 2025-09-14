@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stoichiometry Calculator</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Stoichiometry Calculator</h1>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" name="file" id="reactionFile" required>
+        <button type="submit">Upload Reaction File</button>
+    </form>
+    <div id="compoundsTable"></div>
+    
+    <script>
+        $(document).ready(function() {
+            $('#uploadForm').on('submit', function(event) {
+                event.preventDefault();
+                var formData = new FormData(this);
+                $.ajax({
+                    url: '/upload_reaction',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(data) {
+                        alert(data.message);
+                        renderTable(data.compounds);
+                    },
+                    error: function(xhr) {
+                        alert(xhr.responseJSON.error);
+                    }
+                });
+            });
+        });
+
+        function renderTable(compounds) {
+            let tableHtml = '<table border="1"><tr>';
+            const headers = Object.keys(compounds[0]);
+            headers.forEach(header => {
+                tableHtml += `<th>${header}</th>`;
+            });
+            tableHtml += '</tr>';
+            compounds.forEach(compound => {
+                tableHtml += '<tr>';
+                headers.forEach(header => {
+                    tableHtml += `<td>${compound[header]}</td>`;
+                });
+                tableHtml += '</tr>';
+            });
+            tableHtml += '</table>';
+            $('#compoundsTable').html(tableHtml);
+        }
+    </script>
+</body>
+</html>

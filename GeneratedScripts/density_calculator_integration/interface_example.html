@@ -1,0 +1,102 @@
+<!-- Interface HTML pour density_calculator -->
+<div class="row">
+    <div class="col-md-12">
+        <h3>🧪 Calculateur de Densité d'Explosifs</h3>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Formule chimique:</label>
+                    <input type="text" id="density-formula" class="form-control" 
+                           placeholder="ex: C3H6N6O6 (RDX)" value="C3H6N6O6">
+                </div>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" onclick="parseFormula()">
+                        🔍 Analyser Formule
+                    </button>
+                    <button class="btn btn-success" onclick="calculateDensity()">
+                        ⚖️ Calculer Densité
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="alert alert-info">
+                    <h6>📋 Exemples de formules :</h6>
+                    <ul class="mb-0">
+                        <li><code>C3H6N6O6</code> - RDX</li>
+                        <li><code>C4H8N8O8</code> - HMX</li>
+                        <li><code>C6H2N3O7</code> - TNT</li>
+                        <li><code>CH3NO2</code> - Nitromethane</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div id="density-result" class="mt-3"></div>
+    </div>
+</div>
+
+<script>
+async function parseFormula() {
+    const formula = document.getElementById('density-formula').value;
+    
+    if (!formula) {
+        alert('Veuillez saisir une formule chimique');
+        return;
+    }
+    
+    try {
+        const result = await apiCall('/api/density_calculator/parse_formula', 'POST', {
+            formula: formula
+        });
+        
+        if (result.success) {
+            const composition = Object.entries(result.composition)
+                .map(([element, count]) => `${element}${count > 1 ? count : ''}`)
+                .join(' ');
+                
+            showResponse('density-result', {
+                success: true,
+                message: `✅ Formule analysée: ${result.formula}`,
+                composition: `Composition: ${composition}`,
+                details: result.composition
+            }, true);
+        } else {
+            showResponse('density-result', result, false);
+        }
+    } catch (error) {
+        showResponse('density-result', {error: error.message}, false);
+    }
+}
+
+async function calculateDensity() {
+    const formula = document.getElementById('density-formula').value;
+    
+    if (!formula) {
+        alert('Veuillez saisir une formule chimique');
+        return;
+    }
+    
+    try {
+        showResponse('density-result', {message: '⚖️ Calcul en cours...'}, true);
+        
+        const result = await apiCall('/api/density_calculator/calculate_density', 'POST', {
+            formula: formula
+        });
+        
+        if (result.success) {
+            const response = {
+                success: true,
+                formula: result.formula,
+                molar_mass: `${result.molar_mass.toFixed(3)} g/mol`,
+                density: `${result.density.toFixed(3)} ${result.unit}`,
+                composition: result.composition
+            };
+            
+            showResponse('density-result', response, true);
+        } else {
+            showResponse('density-result', result, false);
+        }
+    } catch (error) {
+        showResponse('density-result', {error: error.message}, false);
+    }
+}
+</script>

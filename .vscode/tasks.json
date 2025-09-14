@@ -7,6 +7,19 @@
             "command": "python main.py",
             "group": "build",
             "problemMatcher": []
+        },
+        {
+            "label": "IAM GOD MODE Launch",
+            "type": "shell",
+            "command": "bash",
+            "args": ["launch_god_mode.sh"],
+            "group": "build",
+            "isBackground": true,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "panel": "new"
+            }
         }
     ]
 }

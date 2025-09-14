@@ -3,6 +3,7 @@
 ## 📋 Contexte du Problème
 
 L'interface IAM avait plusieurs problèmes critiques :
+
 1. **Conversion MOL → XYZ échouait**
 2. **Sketcher Ketcher non-fonctionnel**
 3. **Upload de fichiers ne s'affichait pas dans le viewer**
@@ -334,21 +335,25 @@ curl -X POST http://localhost:5000/molfile_to_xyz \
 ## 🎯 Points Clés de la Solution
 
 ### **1. Gestion d'Erreurs Gracieuse**
+
 - ✅ Fallbacks pour RDKit indisponible
 - ✅ Messages d'erreur informatifs
 - ✅ Codes de statut HTTP appropriés (503, 400, 200)
 
 ### **2. Communication Frontend ↔ Backend Robuste**
+
 - ✅ PostMessage API pour Ketcher
 - ✅ Fetch API avec gestion d'erreurs
 - ✅ Timeouts de sécurité
 
 ### **3. Architecture Modulaire**
+
 - ✅ Séparation JavaScript (iam_fixed.js)
 - ✅ Template HTML corrigé (interface_corrected.html)
 - ✅ Backend avec endpoints RESTful
 
 ### **4. Tests de Validation Intégrés**
+
 - ✅ Vérification RDKit au démarrage
 - ✅ Validation formats MOL/XYZ
 - ✅ Feedback utilisateur temps réel

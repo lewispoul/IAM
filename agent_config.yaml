@@ -1,0 +1,21 @@
+pdf_paths:
+  - IAM_References/klapotke_vol1.pdf
+  - IAM_References/klapotke_vol2.pdf
+  - IAM_References/klapotke_vol3.pdf
+  - IAM_References/agrawal_2010.pdf
+
+output_dir: IAM_Knowledge/Compounds/
+calculation_dir: IAM_Knowledge/Results/
+
+api_endpoints:
+  xtb: http://localhost:5000/run_xtb
+  vod: http://localhost:5000/predict_vod
+  stability: http://localhost:5000/predict_stability
+
+gpt4_model: gpt-4o
+interval_minutes: 5
+auto_mode: false
+
+gpt4_api_key: "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"
+
+

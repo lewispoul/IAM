@@ -1,25 +1,57 @@
 #!/usr/bin/env python3
 
-print("Testing basic Python functionality...")
+"""
+Test simple et direct du Function Calling
+"""
 
-try:
-    import sys
-    print(f"Python version: {sys.version}")
+import yaml
+from IAM_ChatGPT_Integration import IAMChatGPTAgent
+
+def test_simple():
+    """Test simple avec la vraie API"""
+    print("🧪 Test simple du Function Calling")
+    print("=" * 50)
     
-    import flask
-    print(f"Flask version: {flask.__version__}")
+    # Charger la configuration
+    with open("agent_config.yaml", "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
     
-    from flask import Flask
-    app = Flask(__name__)
+    # Créer l'agent
+    agent = IAMChatGPTAgent(
+        api_key=config["gpt4_api_key"],
+        model=config.get("gpt4_model", "gpt-4o")
+    )
     
-    @app.route('/')
-    def hello():
-        return "Hello World!"
+    # Activer le mode GOD
+    agent.enable_god_mode()
     
-    print("Flask app created successfully!")
-    print("If you see this, the basic setup works.")
+    print("\n✅ Agent créé et configuré")
     
-except Exception as e:
-    print(f"Error: {e}")
-    import traceback
-    traceback.print_exc()
+    # Test simple : demander à l'agent de lire README.md
+    print("\n📝 Test: Demande de lecture du fichier README.md")
+    print("-" * 50)
+    
+    try:
+        response, conversation = agent.chat(
+            "Salut ! Peux-tu lire le fichier README.md et me dire en 2-3 phrases ce qu'il contient ?"
+        )
+        
+        print(f"🤖 Réponse de l'agent:")
+        print(response)
+        
+        # Analyser la réponse
+        if "README" in response or "fichier" in response.lower():
+            print("\n✅ SUCCESS: L'agent a mentionné le fichier README")
+        else:
+            print("\n❌ ECHEC: L'agent n'a pas lu le fichier")
+        
+        if len(response) > 100:
+            print("✅ SUCCESS: Réponse détaillée (probablement basée sur le contenu du fichier)")
+        else:
+            print("❌ ECHEC: Réponse trop courte")
+            
+    except Exception as e:
+        print(f"❌ ERREUR: {e}")
+
+if __name__ == "__main__":
+    test_simple()
