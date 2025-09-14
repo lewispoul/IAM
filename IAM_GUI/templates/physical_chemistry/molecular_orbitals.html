@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orbitales Moléculaires - IAM Physical Chemistry</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 3Dmol.js -->
+    <script src="https://3dmol.csb.pitt.edu/build/3Dmol-min.js"></script>
+    <!-- MathJax for equations -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        .theory-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            margin: 2rem 0;
+        }
+        
+        .orbital-card {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .orbital-card:hover {
+            border-color: #007bff;
+            box-shadow: 0 4px 8px rgba(0,123,255,0.25);
+        }
+        
+        .energy-level {
+            height: 10px;
+            margin: 5px 0;
+            border-radius: 3px;
+            position: relative;
+        }
+        
+        .energy-level.homo {
+            background-color: #dc3545;
+        }
+        
+        .energy-level.lumo {
+            background-color: #007bff;
+        }
+        
+        .energy-level.occupied {
+            background-color: #28a745;
+        }
+        
+        .energy-level.virtual {
+            background-color: #ffc107;
+        }
+        
+        .gap-arrow {
+            font-size: 2rem;
+            color: #dc3545;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        .molecule-viewer {
+            height: 400px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+        
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+        
+        .example-molecule {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .example-molecule:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        
+        .orbital-diagram {
+            background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+            border-radius: 10px;
+            padding: 1rem;
+        }
+        
+        .educational-highlight {
+            background: linear-gradient(135deg, #ffeaa7, #fab1a0);
+            border-left: 4px solid #e17055;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0 10px 10px 0;
+        }
+        
+        .results-panel {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <strong>IAM</strong> Physical Chemistry
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/physical_chemistry/electron_repulsion">Répulsion Électron-Électron</a>
+                <a class="nav-link active" href="/physical_chemistry/molecular_orbitals">Orbitales Moléculaires</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Header Section -->
+        <div class="row">
+            <div class="col-12">
+                <div class="theory-section text-center">
+                    <h1 class="display-4 mb-3">
+                        <i class="fas fa-atom"></i> Orbitales Moléculaires
+                    </h1>
+                    <p class="lead">
+                        Explorez la structure électronique des molécules et comprenez 
+                        comment les orbitales HOMO et LUMO contrôlent la réactivité chimique
+                    </p>
+                    <div class="row mt-4">
+                        <div class="col-md-4">
+                            <h5><i class="fas fa-graduation-cap"></i> Apprentissage</h5>
+                            <p>Théorie des orbitales frontières</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h5><i class="fas fa-calculator"></i> Calculs</h5>
+                            <p>Analyse quantique avec XTB</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h5><i class="fas fa-chart-line"></i> Visualisation</h5>
+                            <p>Diagrammes d'énergie 3D</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Section -->
+        <div class="row mt-4">
+            <div class="col-lg-6">
+                <div class="card orbital-card h-100">
+                    <div class="card-header bg-primary text-white">
+                        <h5><i class="fas fa-upload"></i> Structure Moléculaire</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Input Method Selection -->
+                        <div class="mb-3">
+                            <label class="form-label">Méthode d'entrée :</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="inputMethod" id="xyzInput" value="xyz" checked>
+                                <label class="btn btn-outline-primary" for="xyzInput">Coordonnées XYZ</label>
+                                
+                                <input type="radio" class="btn-check" name="inputMethod" id="smilesInput" value="smiles">
+                                <label class="btn btn-outline-primary" for="smilesInput">SMILES</label>
+                            </div>
+                        </div>
+
+                        <!-- XYZ Input -->
+                        <div id="xyzInputSection">
+                            <label for="xyzCoordinates" class="form-label">Coordonnées XYZ :</label>
+                            <textarea class="form-control" id="xyzCoordinates" rows="8" 
+                                    placeholder="Entrez les coordonnées XYZ...&#10;Format:&#10;N&#10;Commentaire&#10;Element X Y Z&#10;..."></textarea>
+                        </div>
+
+                        <!-- SMILES Input -->
+                        <div id="smilesInputSection" style="display: none;">
+                            <label for="smilesString" class="form-label">Chaîne SMILES :</label>
+                            <input type="text" class="form-control" id="smilesString" 
+                                   placeholder="Ex: c1ccccc1 (benzène), C=O (formaldéhyde)...">
+                        </div>
+
+                        <!-- Calculation Parameters -->
+                        <div class="mt-3">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="chargeInput" class="form-label">Charge :</label>
+                                    <input type="number" class="form-control" id="chargeInput" value="0" min="-5" max="5">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="multiplicityInput" class="form-label">Multiplicité :</label>
+                                    <select class="form-select" id="multiplicityInput">
+                                        <option value="1">1 (Singulet)</option>
+                                        <option value="2">2 (Doublet)</option>
+                                        <option value="3">3 (Triplet)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Method Selection -->
+                        <div class="mt-3">
+                            <label for="methodSelect" class="form-label">Méthode de calcul :</label>
+                            <select class="form-select" id="methodSelect">
+                                <option value="xtb">XTB-GFN2 (Recommandé)</option>
+                                <option value="xtb-gfn1">XTB-GFN1 (Rapide)</option>
+                            </select>
+                        </div>
+
+                        <!-- Calculate Button -->
+                        <button class="btn btn-success w-100 mt-3" id="calculateBtn">
+                            <i class="fas fa-play"></i> Analyser les Orbitales
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Examples Section -->
+            <div class="col-lg-6">
+                <div class="card orbital-card h-100">
+                    <div class="card-header bg-info text-white">
+                        <h5><i class="fas fa-flask"></i> Molécules d'Exemple</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Cliquez sur un exemple pour l'analyser :</p>
+                        <div id="exampleMolecules">
+                            <!-- Examples will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" style="display: none;">
+            <div class="results-panel">
+                <h3 class="text-center mb-4">
+                    <i class="fas fa-chart-area"></i> Analyse des Orbitales Moléculaires
+                </h3>
+
+                <!-- Summary Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card text-center border-danger">
+                            <div class="card-body">
+                                <h5 class="card-title text-danger">HOMO</h5>
+                                <h6 id="homoEnergy" class="card-text">- eV</h6>
+                                <small class="text-muted">Orbitale occupée la plus haute</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center border-primary">
+                            <div class="card-body">
+                                <h5 class="card-title text-primary">LUMO</h5>
+                                <h6 id="lumoEnergy" class="card-text">- eV</h6>
+                                <small class="text-muted">Orbitale virtuelle la plus basse</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center border-warning">
+                            <div class="card-body">
+                                <h5 class="card-title text-warning">Gap HOMO-LUMO</h5>
+                                <h6 id="homoLumoGap" class="card-text">- eV</h6>
+                                <small class="text-muted">Différence énergétique</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center border-success">
+                            <div class="card-body">
+                                <h5 class="card-title text-success">Énergie Totale</h5>
+                                <h6 id="totalEnergy" class="card-text">- Hartree</h6>
+                                <small class="text-muted">Énergie de la molécule</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visualization Row -->
+                <div class="row mb-4">
+                    <!-- Molecular Structure -->
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-cube"></i> Structure Moléculaire 3D</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="moleculeViewer" class="molecule-viewer"></div>
+                                <div class="text-center mt-2">
+                                    <small class="text-muted">
+                                        Rotation: souris | Zoom: molette | Pan: Ctrl+souris
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Energy Level Diagram -->
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-chart-bar"></i> Diagramme d'Énergie</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="energyChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HOMO-LUMO Analysis -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-arrows-alt-v"></i> Analyse HOMO-LUMO</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-lg-8">
+                                        <div class="orbital-diagram">
+                                            <h6 class="text-center mb-3">Orbitales Frontières</h6>
+                                            <div class="d-flex justify-content-center align-items-center">
+                                                <div class="text-center">
+                                                    <div class="energy-level lumo" style="width: 120px;"></div>
+                                                    <small class="text-primary"><strong>LUMO</strong></small>
+                                                    <div id="lumoEnergyDisplay" class="mt-1">- eV</div>
+                                                </div>
+                                                <div class="mx-4">
+                                                    <div class="gap-arrow">↕</div>
+                                                    <div class="text-center">
+                                                        <small><strong>Gap</strong></small>
+                                                        <div id="gapDisplay">- eV</div>
+                                                    </div>
+                                                </div>
+                                                <div class="text-center">
+                                                    <div class="energy-level homo" style="width: 120px;"></div>
+                                                    <small class="text-danger"><strong>HOMO</strong></small>
+                                                    <div id="homoEnergyDisplay" class="mt-1">- eV</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4">
+                                        <div class="educational-highlight">
+                                            <h6><i class="fas fa-lightbulb"></i> Interprétation</h6>
+                                            <div id="gapInterpretation">
+                                                Analysez votre molécule pour voir l'interprétation
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reactivity Analysis -->
+                <div class="row mb-4">
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-chemical-chart"></i> Prédiction de Réactivité</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="reactivityChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-graduation-cap"></i> Analyse Éducative</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="educationalAnalysis">
+                                    <!-- Educational content will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Orbital Table -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-table"></i> Détails des Orbitales</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped" id="orbitalsTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Index</th>
+                                                <th>Énergie (eV)</th>
+                                                <th>Occupation</th>
+                                                <th>Type</th>
+                                                <th>Symétrie</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Theory Section -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-book"></i> Base Théorique</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="theoryContent">
+                            <!-- Theory content will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center p-4">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                    <h5>Analyse en cours...</h5>
+                    <p class="text-muted">Calcul des orbitales moléculaires avec XTB</p>
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Font Awesome -->
+    <script src="https://kit.fontawesome.com/your-kit-code.js" crossorigin="anonymous"></script>
+
+    <script>
+        // Global variables
+        let currentMolecule = null;
+        let viewer = null;
+        let energyChart = null;
+        let reactivityChart = null;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeInputMethods();
+            loadExampleMolecules();
+            loadTheoryContent();
+            setupCalculateButton();
+            initializeMoleculeViewer();
+        });
+
+        function initializeInputMethods() {
+            const inputMethodRadios = document.querySelectorAll('input[name="inputMethod"]');
+            inputMethodRadios.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const xyzSection = document.getElementById('xyzInputSection');
+                    const smilesSection = document.getElementById('smilesInputSection');
+                    
+                    if (this.value === 'xyz') {
+                        xyzSection.style.display = 'block';
+                        smilesSection.style.display = 'none';
+                    } else {
+                        xyzSection.style.display = 'none';
+                        smilesSection.style.display = 'block';
+                    }
+                });
+            });
+        }
+
+        function loadExampleMolecules() {
+            fetch('/physical_chemistry/molecular_orbitals/examples')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayExampleMolecules(data.examples);
+                    }
+                })
+                .catch(error => console.error('Error loading examples:', error));
+        }
+
+        function displayExampleMolecules(examples) {
+            const container = document.getElementById('exampleMolecules');
+            container.innerHTML = '';
+
+            examples.forEach(example => {
+                const exampleDiv = document.createElement('div');
+                exampleDiv.className = 'example-molecule card mb-2';
+                exampleDiv.innerHTML = `
+                    <div class="card-body p-3">
+                        <h6 class="card-title">${example.name}</h6>
+                        <p class="card-text small">${example.description}</p>
+                        <small class="text-primary">${example.educational_focus}</small>
+                    </div>
+                `;
+                
+                exampleDiv.addEventListener('click', () => {
+                    if (example.xyz) {
+                        document.querySelector('input[name="inputMethod"][value="xyz"]').checked = true;
+                        document.getElementById('xyzInputSection').style.display = 'block';
+                        document.getElementById('smilesInputSection').style.display = 'none';
+                        document.getElementById('xyzCoordinates').value = example.xyz;
+                    } else if (example.smiles) {
+                        document.querySelector('input[name="inputMethod"][value="smiles"]').checked = true;
+                        document.getElementById('xyzInputSection').style.display = 'none';
+                        document.getElementById('smilesInputSection').style.display = 'block';
+                        document.getElementById('smilesString').value = example.smiles;
+                    }
+                });
+                
+                container.appendChild(exampleDiv);
+            });
+        }
+
+        function loadTheoryContent() {
+            fetch('/physical_chemistry/molecular_orbitals/theory')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('theoryContent').innerHTML = 
+                            data.theory.replace(/\n/g, '<br>').replace(/#+\s/g, '<h5>').replace(/<h5>([^<]*)<br>/g, '<h5>$1</h5>');
+                    }
+                })
+                .catch(error => console.error('Error loading theory:', error));
+        }
+
+        function setupCalculateButton() {
+            document.getElementById('calculateBtn').addEventListener('click', function() {
+                performOrbitalAnalysis();
+            });
+        }
+
+        function initializeMoleculeViewer() {
+            const element = document.getElementById('moleculeViewer');
+            viewer = $3Dmol.createViewer(element, {
+                defaultcolors: $3Dmol.rasmolElementColors
+            });
+        }
+
+        function performOrbitalAnalysis() {
+            const inputMethod = document.querySelector('input[name="inputMethod"]:checked').value;
+            const charge = parseInt(document.getElementById('chargeInput').value);
+            const multiplicity = parseInt(document.getElementById('multiplicityInput').value);
+            const method = document.getElementById('methodSelect').value;
+
+            let requestData = {
+                charge: charge,
+                multiplicity: multiplicity,
+                method: method,
+                include_orbitals: true
+            };
+
+            if (inputMethod === 'xyz') {
+                const xyzContent = document.getElementById('xyzCoordinates').value.trim();
+                if (!xyzContent) {
+                    alert('Veuillez entrer les coordonnées XYZ');
+                    return;
+                }
+                requestData.xyz_content = xyzContent;
+            } else {
+                const smiles = document.getElementById('smilesString').value.trim();
+                if (!smiles) {
+                    alert('Veuillez entrer une chaîne SMILES');
+                    return;
+                }
+                requestData.smiles = smiles;
+            }
+
+            // Show loading modal
+            const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+            loadingModal.show();
+
+            fetch('/physical_chemistry/molecular_orbitals/calculate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingModal.hide();
+                if (data.success) {
+                    currentMolecule = data;
+                    displayResults(data);
+                } else {
+                    alert('Erreur de calcul: ' + data.error);
+                }
+            })
+            .catch(error => {
+                loadingModal.hide();
+                console.error('Error:', error);
+                alert('Erreur lors du calcul: ' + error.message);
+            });
+        }
+
+        function displayResults(results) {
+            // Show results section
+            document.getElementById('resultsSection').style.display = 'block';
+            
+            // Scroll to results
+            document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+
+            // Update summary cards
+            updateSummaryCards(results);
+            
+            // Update molecular viewer
+            updateMoleculeViewer(results);
+            
+            // Update energy chart
+            updateEnergyChart(results);
+            
+            // Update HOMO-LUMO display
+            updateHomoLumoDisplay(results);
+            
+            // Update reactivity chart
+            updateReactivityChart(results);
+            
+            // Update educational analysis
+            updateEducationalAnalysis(results);
+            
+            // Update orbitals table
+            updateOrbitalsTable(results);
+        }
+
+        function updateSummaryCards(results) {
+            document.getElementById('homoEnergy').textContent = 
+                (results.homo_energy * 27.2114).toFixed(2) + ' eV';
+            document.getElementById('lumoEnergy').textContent = 
+                (results.lumo_energy * 27.2114).toFixed(2) + ' eV';
+            document.getElementById('homoLumoGap').textContent = 
+                results.homo_lumo_gap_eV ? results.homo_lumo_gap_eV.toFixed(2) + ' eV' : 
+                (results.homo_lumo_gap * 27.2114).toFixed(2) + ' eV';
+            document.getElementById('totalEnergy').textContent = 
+                results.total_energy.toFixed(4) + ' Hartree';
+        }
+
+        function updateMoleculeViewer(results) {
+            if (!viewer || !results.visualization_data || !results.visualization_data.molecule) {
+                return;
+            }
+
+            viewer.clear();
+            
+            const molecule = results.visualization_data.molecule;
+            
+            // Add atoms
+            molecule.coordinates.forEach((coord, index) => {
+                viewer.addSphere({
+                    center: { x: coord[1], y: coord[2], z: coord[3] },
+                    radius: 0.5,
+                    color: getElementColor(coord[0])
+                });
+                
+                viewer.addLabel(coord[0], {
+                    position: { x: coord[1], y: coord[2], z: coord[3] },
+                    fontSize: 12,
+                    fontColor: 'black'
+                });
+            });
+
+            // Add bonds
+            if (molecule.bonds) {
+                molecule.bonds.forEach(bond => {
+                    const atom1 = molecule.coordinates[bond[0]];
+                    const atom2 = molecule.coordinates[bond[1]];
+                    
+                    viewer.addCylinder({
+                        start: { x: atom1[1], y: atom1[2], z: atom1[3] },
+                        end: { x: atom2[1], y: atom2[2], z: atom2[3] },
+                        radius: 0.1,
+                        color: 'gray'
+                    });
+                });
+            }
+
+            viewer.zoomTo();
+            viewer.render();
+        }
+
+        function getElementColor(element) {
+            const colors = {
+                'H': 'white',
+                'C': 'gray',
+                'N': 'blue',
+                'O': 'red',
+                'S': 'yellow',
+                'P': 'orange',
+                'F': 'green',
+                'Cl': 'green',
+                'Br': 'brown'
+            };
+            return colors[element] || 'magenta';
+        }
+
+        function updateEnergyChart(results) {
+            const ctx = document.getElementById('energyChart').getContext('2d');
+            
+            if (energyChart) {
+                energyChart.destroy();
+            }
+
+            const energyLevels = results.visualization_data?.energy_levels || [];
+            
+            energyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: energyLevels.map((level, index) => `Orb ${index + 1}`),
+                    datasets: [{
+                        label: 'Énergie (eV)',
+                        data: energyLevels.map(level => level.energy * 27.2114),
+                        backgroundColor: energyLevels.map(level => level.color),
+                        borderColor: energyLevels.map(level => level.color),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Énergie (eV)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: 'Niveaux d\'Énergie des Orbitales'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateHomoLumoDisplay(results) {
+            const gap = results.homo_lumo_gap_eV || (results.homo_lumo_gap * 27.2114);
+            
+            document.getElementById('homoEnergyDisplay').textContent = 
+                (results.homo_energy * 27.2114).toFixed(2) + ' eV';
+            document.getElementById('lumoEnergyDisplay').textContent = 
+                (results.lumo_energy * 27.2114).toFixed(2) + ' eV';
+            document.getElementById('gapDisplay').textContent = 
+                gap.toFixed(2) + ' eV';
+
+            // Update interpretation
+            const interpretation = getGapInterpretation(gap);
+            document.getElementById('gapInterpretation').textContent = interpretation;
+        }
+
+        function getGapInterpretation(gapEV) {
+            if (gapEV < 1.0) {
+                return "Très petit gap - Conducteur métallique ou semi-conducteur";
+            } else if (gapEV < 3.0) {
+                return "Gap modéré - Semi-conducteur, photoactivité possible";
+            } else if (gapEV < 5.0) {
+                return "Gap moyen - Molécule stable, réactivité modérée";
+            } else if (gapEV < 8.0) {
+                return "Grand gap - Molécule très stable, faible réactivité";
+            } else {
+                return "Gap très grand - Molécule extrêmement stable, quasi-inerte";
+            }
+        }
+
+        function updateReactivityChart(results) {
+            const ctx = document.getElementById('reactivityChart').getContext('2d');
+            
+            if (reactivityChart) {
+                reactivityChart.destroy();
+            }
+
+            const reactivityData = results.educational_analysis?.reactivity_predictions || {};
+            
+            reactivityChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Nucléophilie', 'Électrophilie', 'Stabilité', 'Polarisabilité', 'Dureté'],
+                    datasets: [{
+                        label: 'Propriétés de Réactivité',
+                        data: [
+                            Math.max(0, 10 - Math.abs(results.homo_energy * 27.2114)),
+                            Math.max(0, Math.abs(results.lumo_energy * 27.2114)),
+                            Math.min((results.homo_lumo_gap * 27.2114) * 2, 10),
+                            Math.max(0, 10 - (results.homo_lumo_gap * 27.2114)),
+                            results.homo_lumo_gap * 27.2114
+                        ],
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 10
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateEducationalAnalysis(results) {
+            const analysis = results.educational_analysis;
+            if (!analysis) return;
+
+            const container = document.getElementById('educationalAnalysis');
+            container.innerHTML = `
+                <h6><i class="fas fa-microscope"></i> Analyse HOMO</h6>
+                <p class="small">${analysis.frontier_orbital_analysis?.homo_character || 'Non disponible'}</p>
+                
+                <h6><i class="fas fa-flask"></i> Analyse LUMO</h6>
+                <p class="small">${analysis.frontier_orbital_analysis?.lumo_character || 'Non disponible'}</p>
+                
+                <h6><i class="fas fa-fire"></i> Réactivité Globale</h6>
+                <p class="small">${analysis.reactivity_predictions?.overall_reactivity || 'Non disponible'}</p>
+                
+                <h6><i class="fas fa-key"></i> Points Clés</h6>
+                <ul class="small">
+                    ${Object.entries(analysis.key_concepts || {}).map(([key, value]) => 
+                        `<li><strong>${key}:</strong> ${value}</li>`
+                    ).join('')}
+                </ul>
+            `;
+        }
+
+        function updateOrbitalsTable(results) {
+            const tableBody = document.querySelector('#orbitalsTable tbody');
+            tableBody.innerHTML = '';
+
+            if (!results.orbitals) return;
+
+            results.orbitals.forEach(orbital => {
+                const row = tableBody.insertRow();
+                row.innerHTML = `
+                    <td>${orbital.orbital_index}</td>
+                    <td>${(orbital.energy * 27.2114).toFixed(3)}</td>
+                    <td>${orbital.occupation.toFixed(1)}</td>
+                    <td><span class="badge bg-${orbital.orbital_type === 'occupied' ? 'success' : 'warning'}">${orbital.orbital_type}</span></td>
+                    <td>${orbital.symmetry || 'N/A'}</td>
+                `;
+            });
+        }
+
+        // MathJax configuration
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+</body>
+</html>

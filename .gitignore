@@ -1,5 +1,6 @@
 # Virtual environments
 .venv/
+venv/
 env/
 ENV/
 env.bak/
@@ -56,3 +57,27 @@ webui/
 legacy*/
 duplicat*/
 miniconda.sh
+
+# Ignorer les fichiers et dossiers inutiles
+/trash/
+__pycache__/
+*.zip
+*.csv
+*.log
+*.bak
+*.tmp
+*.Zone.Identifier
+*.xyz
+*.json
+*.pyc
+*.pyo
+*.db
+*.sqlite
+*.env
+*.lock
+*.swp
+*.swo
+*.DS_Store
+.idea/
+.vscode/
+node_modules/
